@@ -1,4 +1,4 @@
-% ECIR 2027 -- SHORT PAPER, SECOND DRAFT
+% ECIR 2027 -- SHORT PAPER, THIRD DRAFT
 %
 % Prepared with the official Springer LNCS template (llncs.cls v2.25, 2026/09/03) supplied with
 % the call, and checked against "Instructions for Authors of Papers to be Published in Springer
@@ -12,21 +12,18 @@
 %   Sec. 4.9  citations by number via splncs04.
 %
 % LOCAL BUILD NOTE: newtxtext/newtxmath are not installed on the machine this was drafted on, so
-% local compilation used the CMR fallback (comment the two newtx lines to reproduce that). The
-% lines are kept because the supplied template specifies them; build on Overleaf or any TeX Live
-% with newtx for the submission PDF.
+% local compilation used the CMR fallback (comment the two newtx lines to reproduce that). Build
+% on Overleaf or any TeX Live with newtx for the submission PDF. CMR sets looser than the
+% Times-based newtx, so the local page count OVERSTATES the submission length by about one page.
 %
-% LENGTH: 11 pp under the CMR fallback, but CMR sets looser than the Times-based newtx the
-% template actually specifies. Probing with mathptmx (Times metrics, same family as newtx) and
-% with the refs.bib VERIFY notes stripped -- i.e. the submission shape -- gives 10 pp, body ending
-% on p. 9. That leaves roughly one page for Sec. 6 before the 11 pp limit. Re-measure on the real
-% newtx build before adding anything further.
+% STATUS: Sec. 7 (Related Work) is a deliberate stub, budgeted at <= 1 page.
 %
-% STATUS: Sec. 6 (Related Work) is a deliberate stub, budgeted at <= 1 page.
+% NAMING: strategies are named, not lettered -- Wait, Distil, Distil-Stale, Correct, Band,
+% Reweight, plus the infeasible Oracle. The A-E letters in the experiment tree are internal.
 %
-% NAMING: the strategies are named, not lettered -- Wait, Distil, Distil-Stale, Correct, Band,
-% Reweight, plus the infeasible Oracle. The A-E letters used in the experiment tree are internal
-% and must not appear in the paper.
+% IP BOUNDARY: the industrial motivation is built ONLY on the public GEM engineering post and on
+% textbook auction mechanics (eCPM = bid x predicted rate). No internal system names, roadmaps,
+% architectures or numbers appear anywhere in this file. Keep it that way.
 %
 \documentclass[runningheads]{llncs}
 
@@ -42,9 +39,9 @@
 
 \begin{document}
 
-\title{Beyond the Delayed-Feedback Ceiling: Offline Teachers as a Scaling Path for Conversion
-Prediction}
-\titlerunning{Beyond the Delayed-Feedback Ceiling}
+\title{Decoupling the Attribution Window: Foundation-Model Distillation for Delayed Feedback in
+Ads Retrieval}
+\titlerunning{Decoupling the Attribution Window}
 
 \author{Anonymous Author\inst{1}}
 \authorrunning{A. Author}
@@ -54,97 +51,94 @@ Prediction}
 \maketitle
 
 \begin{abstract}
-Conversion labels arrive days after the click, so a model trained today must either wait for
-labels and train on stale data, or use fresh data whose labels are only partly observed. The
-standard answer is to correct the censoring. We argue the answer should instead be to distil an
-offline teacher, and we give both the theory and the measurements for why. Two ceilings govern the
-choice. Censoring correction is bounded by the information remaining in censored labels, a
-property of the delay distribution and therefore fixed; we derive that bound in closed form from
-the empirical delay distribution alone, before any model is trained, and on the Criteo
-delayed-feedback corpus it is $0.868$ of the penalty for a seven-day window. Distillation is
-bounded instead by the teacher, which is a training-time asset and can be bought. We test both
-with 1{,}600 runs spanning five student capacities, twenty rolling origins and five strategies
-under one protocol. Correction attains $0.883$, $0.874$ and $0.849$ at the three smallest
-capacities, within $0.02$ of the prediction, confirming the theory and leaving little left to win.
-Distillation is not bounded that way: at a one-day window it beats the infeasible oracle at four of
-five capacities. Its gain tracks teacher headroom and collapses to $-0.00015$ once that headroom
-falls to $0.0036$, making offline teacher scale the one lever here whose supply is not fixed by
-the corpus.
+Ads retrieval must score on the order of $10^6$ candidates within milliseconds, which forces a
+single small model to serve every advertiser objective at once. Those objectives carry different
+conversion attribution windows, and a hard attribution label is knowable only after its window
+closes. Consolidation therefore pins every fast objective to the slowest objective's clock. We
+observe that a teacher's soft label has no attribution window, so supervising the consolidated
+model with a foundation model decouples the training window from the attribution window entirely.
+We test the delayed-label half of this claim on a public corpus with 1{,}600 runs spanning five
+serving-scale capacities, twenty rolling origins and five strategies. Two ceilings separate the
+options. Censoring correction is capped by the Fisher information surviving in a censored label,
+which we derive in closed form from the empirical delay distribution before training anything; it
+predicts $0.868$ for a seven-day window and measurement gives $0.883$, $0.874$ and $0.849$.
+Distillation is not subject to that cap, beating the infeasible oracle at four of five capacities
+for a one-day window, and its gain is governed by teacher headroom, vanishing when headroom does.
+Calibration, which ads auctions price on directly, transfers from teacher to student faithfully
+and so does its instability: the student inherits the teacher's per-day calibration error rather
+than estimating its own.
 
 \keywords{Delayed feedback \and Conversion rate prediction \and Knowledge distillation \and
-Censored labels \and Computational advertising}
+Foundation models \and Computational advertising}
 \end{abstract}
 
 \section{Introduction}
 \label{sec:intro}
 
-Conversion feedback is late. A click can convert minutes or weeks later, so at the moment a
-training set is assembled some of its labels are simply not yet determined. A decade of work
-treats this as an estimation problem to be solved on the label: wait for labels and accept stale
-covariates, or use fresh covariates and correct the resulting censoring, typically through a joint
-model of conversion and delay \cite{chapelle2014modeling} or through importance weighting
-\cite{ktena2019addressing,yasui2020feedback,yang2021capturing}.
+An ads retrieval stage has to reduce an inventory of order $10^6$ candidates to a shortlist within
+a latency budget of order $10$\,ms. That budget is what makes the stage hard, and it has three
+consequences that together frame this paper.
 
-Meanwhile the systems these models live in have changed shape. Industrial advertising stacks
-increasingly concentrate model capacity in a single large, centrally trained model, of which
-Meta's GEM \cite{meta2025gem} is a recent public example, while the models that actually serve
-traffic remain small enough to meet a latency budget. That separation matters here for a specific
-reason. Training-time capacity and serving-time capacity have become different budgets, and only
-the second is bounded by an SLA. A strategy that converts training-time capacity into serving-time
-accuracy is therefore buying with the cheaper currency. Knowledge distillation is exactly such a
-strategy, and it has an obvious trajectory: as offline teachers grow towards LLM scale, whatever
-distillation buys grows with them.
+\emph{First, the ranking quantity is a price, not an order.} Candidates are ranked by expected
+value, the product of a paced bid and a predicted conversion rate. An error in the predicted rate
+is an error in what the advertiser pays, so the estimate must be calibrated and not merely
+correctly ordered. Metrics that are invariant to monotone rescaling, such as AUC, do not certify
+this.
 
-This paper asks whether that trajectory is worth taking for delayed feedback, and answers it by
-separating two ceilings that the literature tends to conflate.
+\emph{Second, advertisers do not share one objective.} A production system optimises many
+down-funnel conversion events, and each carries its own attribution window $\Delta$: an install
+counted within a day, a purchase within a week. The conventional response is one model per
+objective. At retrieval QPS that response does not survive the latency budget, so the objectives
+must be consolidated into a single model with one shared trunk and per-objective heads.
 
-The first is a property of the data. A censoring correction can only use the information that
-survives in a partly observed label, and that information is fixed by the delay distribution. We
-make this quantitative: under the standard conditional-independence assumption, the recoverable
-fraction of the delay penalty is the mean relative Fisher information of the censored rows
-(Proposition~\ref{prop:ceiling}), computable from the empirical delay distribution and the
-calendar before any model is trained. On the Criteo delayed-feedback corpus it is $0.868$ for a
-seven-day window, and measured recovery is $0.883$, $0.874$ and $0.849$ at our three smallest
-capacities, within $0.02$ of a formula fitted to nothing. This is a good result for the theory and
-a discouraging one for the practice: correction is already at its ceiling, and that ceiling cannot
-be raised, because the delay distribution is not ours to change.
+\emph{Third, consolidation is obstructed by the label, not by the architecture.} Two issues recur.
+The attribution label $\ind[d\le\Delta]$ is not knowable until $\Delta$ has elapsed after the
+click, so a shared training window must end at $T-\max_k\Delta_k$: consolidating $K$ objectives
+pins every fast objective to the slowest one's clock. And down-funnel events are orders of
+magnitude sparser than upper-funnel ones, so a shared trunk trained on hard labels is dominated by
+whichever objective is densest. Both are properties of the supervision signal.
 
-The second ceiling is a property of the budget. Distillation is not bounded by the oracle at all
-(Proposition~\ref{prop:distil}): every other strategy here fits the student class to some
-coarsening of the oracle's own data and therefore cannot beat it, whereas distillation routes its
-target through a strictly richer teacher class. That is not a technicality. At $\Delta=1$\,d,
-distillation beats the infeasible oracle at four of five capacities, by $+0.0015$ to $+0.0040$
-normalised entropy, $p<0.001$. No correction-based strategy exceeds the oracle anywhere at
-$\Delta=7$\,d.
+This suggests the paradigm shift we study: supervise the consolidated model not with hard
+attribution labels but with the soft predictions of a large foundation model trained offline. A
+soft label $\hat\eta(x)$ is available at click time, carries no attribution window, and is dense on
+every row, so in principle it dissolves both obstructions at once. The pattern is deployed. Meta's
+GEM is an LLM-scale ads foundation model trained across thousands of GPUs whose knowledge is
+transferred by distillation, representation learning and parameter sharing into hundreds of
+latency-sensitive vertical models, lifting conversions by $5\,\%$ on Instagram and $3\,\%$ on
+Facebook Feed \cite{meta2025gem}; that report also names the failure mode, \emph{stale
+supervision} when the teacher's signal lags ground truth, and adds a component realigning teacher
+outputs to recent data.
 
-We then show the gain is bought with exactly the quantity the LLM-teacher trajectory supplies.
-Defining teacher headroom as the teacher's advantage over the waiting baseline, distillation's
-gain is roughly flat across a $2.8\times$ range of headroom and then collapses to $-0.00015$ at
-the one cell where headroom falls to $+0.0036$. Distillation helps precisely while the teacher is
-meaningfully better than the student, and our teacher, at $2{,}262\times$ the student's inference
-cost, has already run out of headroom against our largest student. Scaling the teacher is thus not
-an optional refinement of this result; it is the only direction in which the result can continue.
+This paper isolates the delayed-label half of the claim. We fix one objective and vary its
+attribution window, the axis consolidation manipulates, across five serving-scale capacities. We do
+not test multi-objective consolidation or sparsity imbalance; those motivate the design and bound
+what we conclude (Sect.~\ref{sec:limits}).
 
-This study is a controlled baseline, not a demonstration with an LLM-scale teacher, which we did
-not run. Its job is to establish that the mechanism works, to measure what governs it, and to show
-that the alternative is already exhausted. Concretely: (i)~a parameter-free ceiling on what
-censoring correction can recover, validated to within $0.02$ (Sects.~\ref{sec:theory},
-\ref{sec:ceiling-attained}); (ii)~the argument and the evidence that distillation is not subject
-to it, including where it exceeds the infeasible oracle (Sect.~\ref{sec:distil-escapes});
-(iii)~a measurement of what distillation's advantage is bought with, using a control separating
-capacity transfer from delay mitigation that we argue should be mandatory here
-(Sects.~\ref{sec:headroom}, \ref{sec:decomp}).
+Our findings separate two ceilings that the delayed-feedback literature conflates. The first is a
+property of the data and the second of the budget, and only the second can be bought.
+Specifically: (i)~censoring correction is capped by the Fisher information surviving in a censored
+label, which we derive in closed form (Proposition~\ref{prop:ceiling}) and validate to within
+$0.02$ --- so correction is already at a ceiling that the delay distribution, not the modeller,
+fixes; (ii)~distillation is subject to no such cap (Proposition~\ref{prop:distil}), beating the
+infeasible oracle at four of five capacities for a one-day window; (iii)~its gain is bought with
+teacher headroom and vanishes when headroom does, and our teacher is already spent against our
+largest student, which is the concrete sense in which teacher scale is the operative variable; and
+(iv)~calibration transfers from teacher to student faithfully, instability included, which makes
+per-period teacher calibration a requirement rather than a refinement wherever predictions are
+prices.
 
 \section{Problem Setting}
 \label{sec:setting}
 
 A click occurs at time $t$ with covariates $x$. If it converts, the conversion follows after a
-delay $d>0$; write $d=\infty$ for a click that never converts. Under an attribution window
-$\Delta$ the prediction target is
+delay $d>0$; write $d=\infty$ for a click that never converts. Under attribution window $\Delta$
+the target is
 \begin{equation}
-y \;=\; \ind[d \le \Delta], \qquad \eta(x) \;=\; \Pr(d \le \Delta \mid x).
+y \;=\; \ind[d \le \Delta], \qquad \eta(x) \;=\; \Pr(d \le \Delta \mid x),
 \label{eq:label}
 \end{equation}
+and the served quantity is a price proportional to $\eta(x)$, so the level of $\hat\eta$ matters
+and not only its ordering.
 
 The difficulty is not that $y$ is noisy but that it is not yet determined. At an origin $T$, the
 moment a training set is assembled, a row clicked at $t$ has been observable for
@@ -154,20 +148,42 @@ e(t) \;=\; \mathrm{clip}(T-t,\;0,\;\Delta),
 y_{\mathrm{obs}} \;=\; \ind[d \le e(t)] \;\le\; y .
 \label{eq:obs}
 \end{equation}
-Two regimes follow. If $t \le T-\Delta$ then $e=\Delta$ and $y_{\mathrm{obs}}=y$ exactly. If
-$t > T-\Delta$ the row is right-censored: $y_{\mathrm{obs}}=1$ is conclusive, but
-$y_{\mathrm{obs}}=0$ is ambiguous, because the click may still convert inside its remaining
-window. Everything below follows from \eqref{eq:obs}, and no strategy is granted an assumption
-the others lack.
+If $t \le T-\Delta$ then $e=\Delta$ and $y_{\mathrm{obs}}=y$ exactly. If $t > T-\Delta$ the row is
+right-censored: $y_{\mathrm{obs}}=1$ is conclusive, but $y_{\mathrm{obs}}=0$ is ambiguous, because
+the click may still convert inside its remaining window.
+
+\subsection{Why Consolidation Couples the Windows}
+
+Equation~\eqref{eq:obs} has an immediate consequence for the multi-objective setting that motivates
+this work. A model head for objective $k$ can be trained on hard labels only where those labels are
+determined, that is on $[0,T-\Delta_k)$. A consolidated model sharing one trunk and one training
+stream must therefore draw from
+\begin{equation}
+W_{\mathrm{hard}} \;=\; \bigcap_{k=1}^{K}\,[0,\;T-\Delta_k) \;=\; [0,\;T-\textstyle\max_k \Delta_k),
+\qquad
+W_{\mathrm{soft}} \;=\; [0,\;T),
+\label{eq:coupling}
+\end{equation}
+where $W_{\mathrm{soft}}$ is the window available when the supervision is a teacher's prediction
+$\hat\eta_k(x)$, which is defined at click time for every $k$. The statement is elementary, but it
+is binding: under hard labels the fastest objective inherits the slowest objective's staleness,
+and the cost is paid by every head. Under soft labels the intersection disappears. This is the
+sense in which distillation is not one delayed-feedback remedy among several but the one that
+removes the coupling rather than compensating for it.
+
+Our experiments fix $K=1$ and vary $\Delta$, which isolates the per-objective cost of sitting on a
+longer clock without confounding it with multi-task optimisation. The two windows we use bracket
+the relevant range: waiting withholds $2.2\,\%$ of the corpus at $\Delta=1$\,d and $15.5\,\%$ at
+$\Delta=7$\,d.
 
 \subsection{Five Strategies as Estimators}
 
 Let $\mathcal{M}=[0,T-\Delta)$ denote the mature rows and $\mathcal{C}=[T-\Delta,T)$ the censored
 ones, with $|\mathcal{M}|=m$ and $|\mathcal{C}|=c$. Table~\ref{tab:arms} states each strategy as a
-choice of training set and target. Every strategy serves the same student architecture, so they
-are indistinguishable in serving cost and differ only in what they train on. The Oracle is
-infeasible at time $T$, since it uses labels that do not yet exist; it serves only as the
-denominator for how much of the penalty a feasible strategy recovers.
+choice of training set and target. Every strategy serves the same student, so they are
+indistinguishable in serving cost and differ only in supervision. The Oracle is infeasible at time
+$T$, since it uses labels that do not yet exist; it is the denominator for how much of the penalty
+a feasible strategy recovers.
 
 \begin{table}[t]
 \caption{The five strategies, with the infeasible Oracle and the distillation control. All are
@@ -190,22 +206,21 @@ Reweight & $\mathcal{M}$ & $y$, weighted by $\hat p_{\mathcal{C}}(x)/\hat p_{\ma
 \end{tabular}
 \end{table}
 
-Correct is the classical joint conversion-delay likelihood of \cite{chapelle2014modeling},
-with a non-parametric $\hat F$. Under the conditional-independence assumption
+Correct is the classical joint conversion-delay likelihood of \cite{chapelle2014modeling}, with a
+non-parametric $\hat F$. Under the conditional-independence assumption
 \begin{equation}
 \Pr(d \le e \mid x,\ d \le \Delta) \;=\; F(e),
 \label{eq:a1}
 \end{equation}
-that is, delay independent of the covariates given conversion inside the window, the observed
-label has mean $\Pr(y_{\mathrm{obs}}=1 \mid x,e)=\eta(x)F(e)$. Fitting $\sigma(z(x))\hat F(e)$
-against $y_{\mathrm{obs}}$ under log loss is then a proper composite likelihood for $\eta$. The
-correction lives in the loss, and $\sigma(z)$ is served directly with no post-hoc rescaling.
+the observed label has mean $\Pr(y_{\mathrm{obs}}=1 \mid x,e)=\eta(x)F(e)$, so fitting
+$\sigma(z(x))\hat F(e)$ against $y_{\mathrm{obs}}$ under log loss is a proper composite likelihood
+for $\eta$. The correction lives in the loss, and $\sigma(z)$ is served with no post-hoc rescaling.
 
-Distil-Stale is not an ablation but a necessary control. Distil changes two things at once
-relative to Wait: the student inherits a teacher that may be larger than itself, and it trains on
-covariates that Wait had to discard. Distil-Stale removes only the second. Without it, any gain
-from Distil is unattributable, and Sect.~\ref{sec:decomp} shows the attribution is not the one a
-reader would guess.
+Distil-Stale is not an ablation but a necessary control. Distil changes two things at once relative
+to Wait: the student inherits a teacher larger than itself, and it trains on covariates Wait had to
+discard. Distil-Stale removes only the second. It is the experimental counterpart of the stale
+supervision reported in deployment \cite{meta2025gem}, and Sect.~\ref{sec:decomp} shows the
+attribution is not the one a reader would guess.
 
 \section{Two Ceilings}
 \label{sec:theory}
@@ -214,10 +229,10 @@ reader would guess.
 
 Under \eqref{eq:a1} a censored observation with window $e$ is Bernoulli with mean $\eta F(e)$. Its
 Fisher information about $\eta$ is $I(\eta;e)=(\partial_\eta \eta F)^2/(\eta F(1-\eta F))
-= F/(\eta(1-\eta F))$, against $I_{\mathrm{full}}=1/(\eta(1-\eta))$ for a mature row. The relative
-information of a censored row is therefore
+= F/(\eta(1-\eta F))$, against $I_{\mathrm{full}}=1/(\eta(1-\eta))$ for a mature row, so the
+relative information of a censored row is
 \begin{equation}
-\rho(F) \;=\; \frac{I(\eta;e)}{I_{\mathrm{full}}} \;=\; \frac{F(1-\eta)}{1-\eta F} \;\in\; [0,1],
+\rho(F) \;=\; \frac{F(1-\eta)}{1-\eta F} \;\in\; [0,1],
 \qquad \rho(1)=1, \quad \rho(F)\approx F \ \text{for small } \eta .
 \label{eq:rho}
 \end{equation}
@@ -234,13 +249,11 @@ R \;=\; \frac{1/m - 1/(m+\bar\rho c)}{1/m - 1/(m+c)} \;=\; \frac{\bar\rho\,(m+c)
 \end{proposition}
 
 $R$ contains no fitted quantity: $\bar\rho$ follows from the empirical delay distribution and the
-base rate, and $m$ and $c$ from the calendar. It can be computed before training anything.
-
-On this corpus the delay distribution is strongly front-loaded, with $57.4\,\%$ of conversions
-within seven days landing in the first hour, so censored rows retain most of their information
-even when their window has barely opened. Averaged over the twenty origins used below,
-$\bar\rho=0.886$ and $R=0.888$ for $\Delta=1$\,d, and $\bar\rho=0.847$ and $R=0.868$ for
-$\Delta=7$\,d.
+base rate, and $m$ and $c$ from the calendar. On this corpus the delay distribution is strongly
+front-loaded, with $57.4\,\%$ of conversions within seven days landing in the first hour, so
+censored rows retain most of their information even when their window has barely opened. Over the
+twenty origins used below, $\bar\rho=0.886$ and $R=0.888$ for $\Delta=1$\,d, and $\bar\rho=0.847$
+and $R=0.868$ for $\Delta=7$\,d.
 
 \subsection{Why Distillation Is Not Subject to It}
 
@@ -258,22 +271,19 @@ term of order $1/(m+c)$. Hence $R>1$ is attainable for Distil and not for the ot
 \end{proposition}
 
 The first half is a data-processing argument: $y_{\mathrm{obs}}$, the band indicators and
-Reweight's weights are all functions of $(x,y,d)$ observed on a subset of the Oracle's rows, so
-each is a coarsening of the Oracle's signal and no fit of $\mathcal{F}$ to it can do better
-asymptotically. The second half is the familiar approximation-estimation split. Distillation does
-not add information; the teacher is trained on $\mathcal{M}$, which the Oracle also sees. It
-substitutes a better \emph{estimator} of $\eta$, computed in a class the student could not afford
-to serve, and hands the student a denoised regression target in place of binary labels.
+Reweight's weights are functions of $(x,y,d)$ observed on a subset of the Oracle's rows, so each is
+a coarsening of the Oracle's signal and no fit of $\mathcal{F}$ to it can do better asymptotically.
+The second half is the approximation-estimation split. Distillation adds no information; the
+teacher trains on $\mathcal{M}$, which the Oracle also sees. It substitutes a better
+\emph{estimator} of $\eta$, computed in a class the student could not afford to serve, and hands
+the student a denoised regression target in place of binary labels.
 
-This is the asymmetry that motivates offline teachers. Proposition~\ref{prop:ceiling}'s ceiling is
-set by $F$, a property of the advertisers and the corpus. Proposition~\ref{prop:distil}'s ceiling
-is set by $\mathcal{G}$, a property of the training budget. Only the second is something a
-practitioner can purchase, and the industrial trend towards large centrally trained models
-\cite{meta2025gem} is precisely a supply of it.
-
-Both propositions are asymptotic and ignore optimisation error; Prop.~\ref{prop:ceiling}
-additionally assumes \eqref{eq:a1} and attributes the whole penalty to effective sample size.
-Section~\ref{sec:results} shows where each idealisation is visible in the data.
+This is the asymmetry that motivates foundation-model teachers, and it composes with
+\eqref{eq:coupling}. The ceiling in Proposition~\ref{prop:ceiling} is set by $F$, a property of
+advertisers and users. The ceiling in Proposition~\ref{prop:distil} is set by $\mathcal{G}$, a
+property of the offline training budget. Only the second can be purchased, and industrial ads
+foundation models are a supply of it \cite{meta2025gem}. Both propositions are asymptotic and
+ignore optimisation error; Prop.~\ref{prop:ceiling} additionally assumes \eqref{eq:a1}.
 
 \section{Experimental Design}
 \label{sec:design}
@@ -281,12 +291,12 @@ Section~\ref{sec:results} shows where each idealisation is visible in the data.
 \paragraph{Protocol.}
 We use rolling origins $T=40,\ldots,59$, each with training windows ending at $T$ minus that
 strategy's own wait, and evaluation on the single day $[(T{+}1)\mathrm{d},(T{+}2)\mathrm{d})$ with
-one idle day in between, held fixed as the window slides. The label \eqref{eq:label} is enforced
+one idle day in between, held fixed as the window slides. Label \eqref{eq:label} is enforced
 identically in training and evaluation: a row may enter a training set only if its label is
-knowable at $T$. Evaluation days carry 230k to 300k rows. Conversions are logged to day $90.955$
-while clicks stop at day $61.001$, so every evaluation label is fully resolved at every $\Delta$.
-The origin is the unit of replication and all comparisons are paired on it, because the evaluation
-positive rate swings from $0.1595$ to $0.1966$ across these twenty days, an order of magnitude
+knowable at $T$. Evaluation days carry 230k to 300k rows, and every evaluation label is fully
+resolved at every $\Delta$ (conversions are logged to day $90.955$, clicks stop at $61.001$). The
+origin is the unit of replication and all comparisons are paired on it, because the evaluation
+positive rate swings from $0.1595$ to $0.1966$ across these twenty days --- an order of magnitude
 more than any effect we measure.
 
 \paragraph{Tasks.}
@@ -295,52 +305,48 @@ $-0.00002$ ($p=0.842$): there is no penalty to recover, so every strategy ties w
 construction.
 
 \paragraph{Capacity Ladder.}
-Strategy rankings that hold at one model size need not hold at another, so the entire comparison
-is repeated at five capacities $S_0,\ldots,S_4$. All five share one backbone and differ only in
-the number of categorical hash-table rows ($36$, $64$, $160$, $896$ and $131{,}072$, or $2{,}592$
-to $9{,}437{,}184$ table parameters, a $3{,}641\times$ range), a single monotone knob that is
-exactly the embedding-table memory footprint and therefore the binding constraint in production
-ranking. The ladder was constructed to be approximately equally spaced in normalised entropy
-(mean step $0.0149$, from $0.78626$ at $S_0$ to $0.72794$ at $S_4$ at one reference origin) and is
-monotone in it at 40 of 40 (task, origin) cells.
+The premise is that the student stays inside a serving budget, so the entire comparison is repeated
+at five capacities $S_0,\ldots,S_4$. All five share one backbone and differ only in the number of
+categorical hash-table rows ($36$, $64$, $160$, $896$ and $131{,}072$, or $2{,}592$ to
+$9{,}437{,}184$ table parameters, a $3{,}641\times$ range), a single monotone knob that is exactly
+the embedding-table memory footprint and therefore the binding constraint in production retrieval.
+The ladder was constructed to be approximately equally spaced in normalised entropy (mean step
+$0.0149$, from $0.78626$ at $S_0$ to $0.72794$ at $S_4$ at one reference origin) and is monotone in
+it at 40 of 40 (task, origin) cells.
 
 \paragraph{Teacher.}
-Distil always uses the same teacher, selected as the best of a 21-rung architecture ladder and
-held at full table resolution: $57.3$\,M parameters and $1.59$\,M FLOPs per example, against $704$
-FLOPs for every student, a ratio of $2{,}262\times$. It is a training-only asset in exactly the
-sense Sect.~\ref{sec:intro} describes, and it could not be served under the student's budget. The
-teacher sees Wait's window and Wait's labels, so it differs from Wait on capacity alone, receiving
-no extra data and no extra label information. We define its \emph{headroom} as
-$H=\NE(\text{Wait})-\NE(\text{teacher})$, the quantity Sect.~\ref{sec:headroom} shows governs
-Distil.
+Distil always uses the same teacher, selected as the best of a 21-rung architecture ladder and held
+at full table resolution: $57.3$\,M parameters and $1.59$\,M FLOPs per example, against $704$ FLOPs
+for every student, a ratio of $2{,}262\times$. It is a training-only asset and could not be served
+under the student's budget. It sees Wait's window and Wait's labels, so it differs from Wait on
+capacity alone. We define its \emph{headroom} as $H=\NE(\text{Wait})-\NE(\text{teacher})$.
 
 \paragraph{Metrics.}
-We report normalised entropy $\NE=\text{logloss}/H(\bar y)$, the calibration ratio $\bar p/\bar y$,
-and a calibration-adjusted $\NE$ obtained by multiplying every prediction by $c=\bar y/\bar p$, so
-that calibration is exactly one, and recomputing $\NE$. That quantity can exceed $\NE$, because
-matching the mean is not the same as minimising log loss; it is a level-matching diagnostic, not a
-lower bound. All models train for exactly one epoch: a second epoch already overfits at every
-capacity (train $-0.0186$, evaluation $+0.0019$, $p=0.025$).
+We report normalised entropy $\NE=\text{logloss}/H(\bar y)$ and the calibration ratio
+$\bar p/\bar y$. Because an auction prices on the day it runs, we summarise calibration
+\emph{per origin} and then average, rather than averaging the ratio first: the two differ sharply
+(Sect.~\ref{sec:calib}). All models train for exactly one epoch; a second epoch already overfits at
+every capacity (train $-0.0186$, evaluation $+0.0019$, $p=0.025$).
 
 \paragraph{Scale and Verification.}
 The grid is 2 tasks $\times$ 5 capacities $\times$ 20 origins $\times$ 8 arms, or 1{,}600 scored
-runs. Four gates were checked before launch: the calibration multiplier forces calibration to one
-at every starting bias; the harness reproduces previously logged cells bit-exactly (14 of 14); the
-shared teacher is identical across capacities to seven decimal places while students are not; and
-every arm at a given (task, origin) is scored on an identical evaluation set.
+runs. Gates checked before launch: the harness reproduces previously logged cells bit-exactly
+(14 of 14); the shared teacher is identical across capacities to seven decimal places while
+students are not; and every arm at a given (task, origin) is scored on an identical evaluation
+set.
 
 \section{Results}
 \label{sec:results}
 
-\subsection{The Penalty Depends on the Window, Not Much on Capacity}
+\subsection{The Cost of the Clock}
 
 The Oracle-minus-Wait gap at $\Delta=7$\,d is $+0.00538$, $+0.00602$, $+0.00746$, $+0.00842$
-and $+0.00598$ for $S_0$ to $S_4$, all with $p<0.001$ over 20 of 20 origins. At $\Delta=1$\,d it
-is an order of magnitude smaller, from $+0.00067$ to $+0.00092$, though equally consistent
-(20 of 20, $p<0.001$). Waiting is expensive only when the window is long relative to the
-available history: at seven days it withholds $12.6$ to $18.6\,\%$ of the corpus. Because the
-$\Delta=1$\,d denominator is below $0.001$ $\NE$, we report absolute differences at that window
-and treat recovery \emph{ratios} there as indicative only.
+and $+0.00598$ for $S_0$ to $S_4$, all with $p<0.001$ over 20 of 20 origins. At $\Delta=1$\,d it is
+an order of magnitude smaller, from $+0.00067$ to $+0.00092$, though equally consistent (20 of 20,
+$p<0.001$). Moving a head from a one-day to a seven-day clock therefore costs roughly $8\times$
+more, which by \eqref{eq:coupling} is what consolidation imposes on a fast objective. Because the
+$\Delta=1$\,d denominator is below $0.001$ $\NE$, we report absolute differences at that window and
+treat recovery \emph{ratios} there as indicative only.
 
 \subsection{Correction Attains Its Ceiling, and Then Falls Below It}
 \label{sec:ceiling-attained}
@@ -349,60 +355,51 @@ and treat recovery \emph{ratios} there as indicative only.
 \includegraphics[width=\textwidth]{figs/fig1_recovery.pdf}
 \caption{The two ceilings. Correct (open circles) tracks the parameter-free prediction of
 Proposition~\ref{prop:ceiling} (dashed) at the three smallest capacities and never crosses the
-Oracle line at $1.0$. Distil (grey squares) is not governed by either bound: it exceeds the Oracle
-throughout $\Delta{=}1$d, and collapses at $S_4$ for $\Delta{=}7$d, where the teacher has almost
-no headroom left}
+Oracle line at $1.0$. Distil (grey squares) is governed by neither bound: it exceeds the Oracle
+throughout $\Delta{=}1$d and collapses at $S_4$ for $\Delta{=}7$d, where the teacher has almost no
+headroom left}
 \label{fig:recovery}
 \end{figure}
 
-For $\Delta=7$\,d the predicted ceiling is $0.868$, and Correct measures $0.883$, $0.874$,
-$0.849$, $0.759$ and $0.625$ across $S_0$ through $S_4$. At the three smallest capacities the
-prediction is accurate to $+0.015$, $+0.006$ and $-0.019$, from a formula with no free parameters
-that was fitted to nothing. At $S_3$ and $S_4$ it over-predicts by $0.11$ and $0.24$.
+For $\Delta=7$\,d the predicted ceiling is $0.868$, and Correct measures $0.883$, $0.874$, $0.849$,
+$0.759$ and $0.625$ across $S_0$ to $S_4$. At the three smallest capacities the prediction is
+accurate to $+0.015$, $+0.006$ and $-0.019$, from a formula with no free parameters fitted to
+nothing. At $S_3$ and $S_4$ it over-predicts by $0.11$ and $0.24$.
 
-The shortfall is misspecification, not estimation. Proposition~\ref{prop:ceiling} assumes
-\eqref{eq:a1}, and that assumption is false on this corpus in a way we can measure. Stratifying
-converted rows by the distinct values of a single categorical field gives six strata holding
-$23{,}790$ to $860{,}851$ conversions each, across which the share of within-seven-day conversions
-landing in the first hour ranges from $0.453$ to $0.689$ (pooled: $0.574$) and the median delay
-from $0.16$\,h to $1.73$\,h, a tenfold spread. A model too small to resolve
-covariate-dependent delay cannot be harmed by a correction that assumes it away, so at $S_0$
-through $S_2$ the only cost of censoring is the statistical one that
-Proposition~\ref{prop:ceiling} prices exactly. As capacity grows, the misspecification bias in
-$\hat F(e)$ becomes expressible and recovery falls below the ceiling. The prediction is therefore
-best read as an upper bound that is tight precisely when the model is sample-limited rather than
-bias-limited, and the gap between prediction and measurement estimates what a
-covariate-conditional delay model would buy.
-
-The practical reading is the same either way: where the ceiling is attained nothing is left for a
-better correction to win, and where it is not, the remedy is a covariate-conditional delay model
-rather than a tighter estimator. Both roads end at a bound set by $F$.
+The shortfall is misspecification, not estimation. Assumption \eqref{eq:a1} is false here in a way
+we can measure: stratifying converted rows by one categorical field gives six strata of $23{,}790$
+to $860{,}851$ conversions, across which the first-hour share of within-seven-day conversions
+ranges from $0.453$ to $0.689$ (pooled $0.574$) and the median delay from $0.16$\,h to $1.73$\,h.
+A model too small to resolve covariate-dependent delay cannot be harmed by a correction assuming it
+away, so at $S_0$ to $S_2$ the only cost of censoring is the statistical one
+Proposition~\ref{prop:ceiling} prices; as capacity grows the bias in $\hat F(e)$ becomes
+expressible and recovery falls below the ceiling. Either way the practical reading is the same:
+where the ceiling is attained nothing is left for a better correction to win, and where it is not,
+the remedy is a covariate-conditional delay model rather than a tighter estimator.
 
 \subsection{Distillation Is Not Bounded by the Oracle}
 \label{sec:distil-escapes}
 
 No correction-based strategy exceeds the Oracle at $\Delta=7$\,d: Correct is below it at every
 capacity by $0.00063$ to $0.00224$ ($p<0.005$), Band by $0.0035$ to $0.0082$, and Reweight by
-$0.0039$ to $0.0081$, all $p<0.001$. This is Proposition~\ref{prop:distil}'s first half,
-and Correct's placement just under the bound is consistent with it being an efficient rather than
-a wasteful estimator.
+$0.0039$ to $0.0081$, all $p<0.001$. This is Proposition~\ref{prop:distil}'s first half, and
+Correct's placement just under the bound is consistent with it being an efficient rather than a
+wasteful estimator.
 
-Distil behaves differently in both windows. At $\Delta=1$\,d it beats the infeasible Oracle at
-$S_0$ through $S_3$ by $+0.00150$, $+0.00294$, $+0.00269$ and $+0.00397$, all $p<0.001$, and by
-$+0.00071$ ($p=0.06$) at $S_4$. At $\Delta=7$\,d it is statistically indistinguishable from the
-Oracle at $S_0$ through $S_3$ ($p=0.45$ to $0.73$) while every other strategy is significantly
-below it. Against Wait it gains $+0.00217$ to $+0.00484$ at $\Delta=1$\,d and $+0.00419$ to
-$+0.00722$ at $\Delta=7$\,d over $S_0$ through $S_3$, all $p<0.001$ at 19 or 20 of 20 origins.
+Distil behaves differently. At $\Delta=1$\,d it beats the infeasible Oracle at $S_0$ to $S_3$ by
+$+0.00150$, $+0.00294$, $+0.00269$ and $+0.00397$, all $p<0.001$, and by $+0.00071$ ($p=0.06$) at
+$S_4$. At $\Delta=7$\,d it is statistically indistinguishable from the Oracle at $S_0$ to $S_3$
+($p=0.45$ to $0.73$) while every other strategy is significantly below it. Against Wait it gains
+$+0.00217$ to $+0.00484$ at $\Delta=1$\,d and $+0.00419$ to $+0.00722$ at $\Delta=7$\,d over $S_0$
+to $S_3$, all $p<0.001$ at 19 or 20 of 20 origins. Head to head with Correct it wins outright at
+the short window, by $+0.00150$ to $+0.00411$ at $S_0$ to $S_3$ ($p<0.001$, 20 of 20 origins) and
+$+0.00089$ at $S_4$ ($p=0.019$), and ties at the long one ($\pm0.0020$, $p=0.25$ to $0.80$). The
+asymmetry follows from Sect.~\ref{sec:ceiling-attained}: at seven days Correct is near a ceiling
+worth $0.868$ of a large penalty, whereas at one day the penalty is small and the teacher's
+advantage is not.
 
-Head to head with Correct, Distil wins outright at the short window and ties at the long one: it
-is ahead by $+0.00150$ to $+0.00411$ at $S_0$ through $S_3$ for $\Delta=1$\,d ($p<0.001$, 20 of 20
-origins) and by $+0.00089$ at $S_4$ ($p=0.019$), but the two are within $\pm0.0020$ with no
-significant difference at $\Delta=7$\,d ($p=0.25$ to $0.80$). The asymmetry follows from
-Sect.~\ref{sec:ceiling-attained}: at seven days Correct is near a ceiling worth $0.868$ of a large
-penalty, whereas at one day the penalty is small and the teacher's advantage is not.
-
-One result cuts against Proposition~\ref{prop:distil} and we report it rather than reconcile it.
-At $\Delta=1$\,d, Reweight also exceeds the Oracle at $S_0$ ($+0.00199$) and $S_2$ ($+0.00041$),
+One result cuts against Proposition~\ref{prop:distil} and we report rather than reconcile it. At
+$\Delta=1$\,d, Reweight also exceeds the Oracle at $S_0$ ($+0.00199$) and $S_2$ ($+0.00041$),
 $p<0.001$. The proposition is asymptotic, and Reweight trains on strictly less data under
 non-uniform weights, which regularises; at a window whose entire penalty is under $0.001$ $\NE$ we
 read these as finite-sample effects. They do not recur at $\Delta=7$\,d, where Reweight is below
@@ -422,76 +419,117 @@ $\Delta{=}7$d. The fresher-covariate term is $47$ to $78\,\%$ of the gain}
 
 Teacher headroom $H$ falls monotonically as the student grows, from $+0.0572$ at $S_0$ to
 $+0.0036$ at $S_4$ for $\Delta=7$\,d, because the teacher is fixed while the student closes on it.
-Distil's gain does not follow $H$ down. Across $S_1$ to $S_3$, where $H$ falls by $2.8\times$ from
+Distil's gain does not follow $H$ down. Across $S_1$ to $S_3$, where $H$ falls $2.8\times$ from
 $0.0484$ to $0.0172$, the gain is essentially flat at $+0.00722$, $+0.00682$ and $+0.00709$: a
 larger student extracts a larger fraction of a smaller advantage, with transfer efficiency
-$\text{gain}/H$ rising from $14.9\,\%$ to $41.2\,\%$ (and from $7.6\,\%$ to $31.0\,\%$ at
+$\text{gain}/H$ rising from $14.9\,\%$ to $41.2\,\%$ (and $7.6\,\%$ to $31.0\,\%$ at
 $\Delta=1$\,d).
 
 The flatness ends abruptly. At $S_4$, $\Delta=7$\,d, headroom is $+0.0036$ and Distil collapses to
 $-0.00015$ ($p=0.898$) --- the only non-positive cell in the grid, and the only one where the
-Distil-Stale control is itself negative ($-0.00126$), meaning the teacher is actively degrading
-the target. Distillation helps exactly while the teacher is meaningfully better than the student.
-That is a statement about model size, not about feedback delay, and it is the boundary condition
-that makes teacher scale the operative variable: our teacher, at $2{,}262\times$ the student's
-inference cost, is already spent against the largest student we tested.
+Distil-Stale control is itself negative ($-0.00126$), meaning the teacher is actively degrading the
+target. Distillation helps exactly while the teacher is meaningfully better than the student, which
+is a statement about model size rather than about feedback delay. Our teacher, at $2{,}262\times$
+the student's inference cost, is already spent against the largest student we tested; scaling the
+teacher is therefore not an optional refinement of this result but the direction in which it
+continues.
 
 \subsection{What Distillation Is Actually Buying}
 \label{sec:decomp}
 
 Read alone, Distil's win over Wait looks like delay mitigation. The Distil-Stale control shows it
 is only partly that. Capacity transfer accounts for $22$ to $53\,\%$ of the gain at $\Delta=7$\,d
-across $S_0$ through $S_3$, and $71$ to $94\,\%$ at $\Delta=1$\,d (Fig.~\ref{fig:decomp}b). The
-residual, the student's exposure to covariates that Wait discarded and which carry no new label
+across $S_0$ to $S_3$, and $71$ to $94\,\%$ at $\Delta=1$\,d (Fig.~\ref{fig:decomp}b). The
+residual, the student's exposure to covariates Wait discarded and which carry no new label
 information, is what is attributable to the delayed label; it is significant at every capacity
-($p\le0.0013$, 19 or 20 of 20 origins) and worth $+0.0033$ to $+0.0045$ at $\Delta=7$\,d.
+($p\le0.0013$, 19 or 20 of 20 origins) and worth $+0.0033$ to $+0.0045$ at $\Delta=7$\,d. Reporting
+Distil against Wait alone would overstate delay mitigation by a factor of two to four at
+$\Delta=1$\,d, and we would encourage this literature to treat a Distil-Stale-style control as
+mandatory.
 
-We stress this because the decomposition is not visible without the control, and its two halves
-point in the same practical direction. The delay-attributable half is real and is the largest such
-term in our grid. The capacity half is the part that grows with the teacher. Reporting Distil
-against Wait alone would overstate delay mitigation by a factor of two to four at $\Delta=1$\,d;
-we would encourage this literature to treat a Distil-Stale-style control as mandatory.
+Band and Reweight do not repay their complexity: Band spans $-0.00215$ to $+0.00457$ with no
+pattern in capacity and is significant in 5 of 10 cells, its slowest band still training on Wait's
+window; Reweight stays within $-0.00055$ to $+0.00265$ of Wait everywhere.
 
-\subsection{Band and Reweight Do Not Repay Their Complexity}
+\subsection{Calibration Transfers, Including Its Instability}
+\label{sec:calib}
 
-Band ranges from $-0.00215$ to $+0.00457$ with no monotone pattern in capacity and is significant
-in only 5 of 10 cells; its slowest band still trains on Wait's window, so it never escapes the wait
-it was designed to avoid. Reweight stays within $-0.00055$ to $+0.00265$ of Wait everywhere,
-consistent with the penalty being missing labels rather than covariate staleness --- and Reweight
-by construction never touches an unresolved label.
+Because the served quantity is a price, calibration is not a diagnostic here but part of the
+objective. Table~\ref{tab:calib} reports it two ways, and the two disagree.
+
+\begin{table}[t]
+\caption{Calibration at $\Delta{=}7$d, averaged over the five capacities. Averaging the ratio over
+origins first lets opposite-sign daily errors cancel; an auction prices on the day it runs, so the
+middle column is the operative one}
+\label{tab:calib}
+\centering
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+& long-run bias & error on a & day-to-day \\
+& $|\overline{c}-1|$ & serving day $\overline{|c-1|}$ & swing (sd) \\
+\midrule
+Oracle        & 0.0153 & 0.0320 & 0.0381 \\
+Wait          & 0.0113 & 0.0332 & 0.0400 \\
+Correct       & 0.0124 & 0.0339 & 0.0410 \\
+Reweight      & 0.0116 & 0.0403 & 0.0497 \\
+Teacher       & 0.0025 & 0.0501 & 0.0697 \\
+Distil        & 0.0100 & 0.0524 & 0.0691 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On long-run bias Distil looks best of the feasible strategies and the teacher best of all. Per
+origin the ranking inverts: Distil is the worst-calibrated arm, exceeding Wait's daily error by
+$0.019$ ($p=5.7\times10^{-4}$, paired over 100 (capacity, origin) cells) and the Oracle's by
+$0.020$. The mechanism is visible in the per-capacity values, which we give because they are
+unusually clean: the teacher's daily error is $0.0501$ at every capacity by construction, and
+Distil's is $0.0597$, $0.0508$, $0.0498$, $0.0519$ and $0.0501$ at $S_0$ to $S_4$, while Wait and
+the Oracle sit at $0.028$ to $0.041$. The student does not estimate its calibration from labels; it
+copies the teacher's, and it copies the day-to-day variance with it.
+
+Calibration is thus a transferable property: a well-calibrated foundation model confers
+calibration on every student it teaches at no serving cost, a second axis along which teacher
+quality pays. But transfer is faithful in both directions, so where predictions are prices the
+teacher must be calibrated \emph{per serving period}, not merely unbiased in the long run ---
+accuracy alone is not a sufficient teacher-selection criterion. That this is operational rather
+than an artefact of our setup is supported independently: the deployed system we take as
+motivation reports stale supervision from teacher lag and adds a component realigning teacher
+outputs to recent ground truth \cite{meta2025gem}.
 
 \section{Related Work}
 
 \emph{[To be written. Anchor on the joint conversion-delay likelihood \cite{chapelle2014modeling};
 the importance-weighting line \cite{ktena2019addressing,yasui2020feedback,yang2021capturing};
-stream-level alternatives \cite{gu2021real,chen2022asymptotically}; covariate-conditional
-delay \cite{yang2022generalized,zhao2023escdfm}, which targets exactly the assumption
-Sect.~\ref{sec:ceiling-attained} shows is violated; and the large centrally trained industrial ads
-models \cite{meta2025gem} that motivate Sect.~\ref{sec:headroom}. Distillation references
-are still to be added, and verified.]}
+stream-level alternatives \cite{gu2021real,chen2022asymptotically}; covariate-conditional delay
+\cite{yang2022generalized,zhao2023escdfm}, which targets exactly the assumption
+Sect.~\ref{sec:ceiling-attained} shows is violated; and industrial ads foundation models with
+post-training knowledge transfer \cite{meta2025gem}. Distillation and multi-task-consolidation
+references still to be added, and verified.]}
 
 \section{Limitations and Outlook}
+\label{sec:limits}
 
-The central extrapolation of this paper is untested. We show that Distil's gain is governed by
-teacher headroom and that our teacher's headroom is exhausted at $S_4$; we do not show what an
-LLM-scale teacher would deliver, because we did not run one. What the grid establishes is that the
-mechanism is real, that it is not bounded by the quantity that bounds every alternative here, and
-that the alternative is already at its own ceiling. Whether the trend continues at three more
-orders of magnitude of teacher is the experiment this baseline is meant to justify, not one it
-performs.
+The scope is deliberate and it bounds the conclusions. We motivate the work with multi-objective
+consolidation but test $K=1$: \eqref{eq:coupling} is an argument, not a measurement, and we do not
+show that a consolidated multi-head model behaves as the union of our single-objective cells.
+Sparsity imbalance across objectives, the second obstruction we cite, cannot be studied on a corpus
+with one conversion event, so it appears here only as motivation. And the extrapolation to
+LLM-scale teachers is untested: we show the gain is governed by teacher headroom and that our
+teacher's headroom is exhausted at $S_4$, not what three further orders of magnitude of teacher
+would deliver. What the grid establishes is that the mechanism is real, that it is not bounded by
+the quantity bounding every alternative here, that the alternative is already at its own ceiling,
+and that calibration transfers along with accuracy.
 
-On the measurements: we use one seed per origin, with the origin as the unit of replication
-($n=20$); seed sensitivity was characterised separately at a standard deviation of $0.0004$ to
-$0.0030$, an order of magnitude below the $\Delta=7$\,d effects, but seeds are not averaged here,
-and the twenty origins share training data heavily, so the effective sample size is below twenty.
-Proposition~\ref{prop:ceiling} assumes a $1/n$ excess-risk rate that we do not verify directly,
-its empirical accuracy at $S_0$ through $S_2$ being the evidence offered;
-Proposition~\ref{prop:distil} is asymptotic, and Sect.~\ref{sec:distil-escapes} reports a
-finite-sample exception to it. The calibration multiplier is fitted on evaluation labels and is a
-diagnostic, never an achievable score. Distil's soft targets are largely teacher in-sample on
-$\mathcal{M}$, and out-of-fold targets, the standard remedy, are untested. Finally, all results
-come from a single public corpus with one delay distribution, so the ceiling of
-Proposition~\ref{prop:ceiling} is corpus-specific even though the formula is not.
+On the measurements: one seed per origin, with the origin as the unit of replication ($n=20$);
+seed sensitivity was characterised separately at a standard deviation of $0.0004$ to $0.0030$, an
+order of magnitude below the $\Delta=7$\,d effects, but seeds are not averaged and the origins
+share training data heavily, so the effective sample size is below twenty.
+Proposition~\ref{prop:ceiling} assumes a $1/n$ excess-risk rate we do not verify directly;
+Proposition~\ref{prop:distil} is asymptotic, with a finite-sample exception in
+Sect.~\ref{sec:distil-escapes}. Distil's soft targets are largely teacher in-sample on
+$\mathcal{M}$, and out-of-fold targets are untested. All results come from one public corpus with
+one delay distribution, so Proposition~\ref{prop:ceiling}'s ceiling is corpus-specific even though
+its formula is not.
 
 \begin{credits}
 \subsubsection{\ackname} \emph{[To be added after review.]}
