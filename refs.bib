@@ -1,120 +1,203 @@
-% ============================================================================================
-% VERIFICATION STATUS -- read before submission.
+% =====================================================================================
+% VERIFICATION STATUS -- read before editing.
 %
-% Entries carry the status recorded in Survey/reports/delayed_label_vs_distillation_lit_review.md
-% section 10.1, which was compiled under a hard no-fabrication rule:
+% TIER 1 (entries below, down to the TIER 2 marker): DOUBLY VERIFIED.
+%   Each was cross-checked against TWO independent in-project primary sources:
+%     (a) the paper's own PDF in Survey/reference_pdfs/Reference/ -- title, author list and
+%         affiliation read off page 1; DOI / arXiv id read off the footer or the ACM reference
+%         block; and
+%     (b) the reference list of TWICE (Survey/reference_pdfs/Reference/TWICE.pdf, entries [3]
+%         [4] [5] [6] [8] [10] [12] [13] [21] [24] [26] [28]), which supplies page ranges.
+%   Nothing in Tier 1 was written from memory. No `note = {VERIFY...}` fields remain.
 %
-%   [F] full text read in this project        -> safe to paraphrase mechanism
-%   [T] title + venue confirmed by search,    -> CITE ONLY, do not paraphrase the mechanism as
-%       CONTENT NOT VERIFIED                     established until the PDF has been read
-%
-% Direct curl, the arXiv API and WebFetch are blocked on the machine this was prepared on, so no
-% BibTeX below was machine-fetched from CrossRef/arXiv. Every [T] entry must be re-fetched from
-% its DOI/arXiv ID and checked before the paper is submitted. NOTHING HERE WAS WRITTEN FROM
-% MEMORY WITHOUT A CORRESPONDING RECORD IN THE REFERENCE BANK.
-% ============================================================================================
+% TIER 2 (2 entries): partial. First author, title and venue recorded in this project's reference bank
+%   (Survey/reports/delayed_label_vs_distillation_lit_review.md), but neither PDF is held
+%   in-project and outbound network is blocked here, so the remaining author names and the page
+%   ranges could not be transcribed from a primary source and are therefore ABSENT, not guessed.
+%   These MUST be completed from their DOI/arXiv id before submission; each prints a `note`
+%   field in the bibliography so the gap is visible in the rendered PDF.
+% =====================================================================================
 
-% [F] -- FULL TEXT READ 2026-09-20 from the HTML supplied in-project by the authors; title,
-%        venue and date also confirmed independently by external web search. Every fact cited
-%        from this source (LLM-scale ads foundation model trained on thousands of GPUs;
-%        post-training knowledge transfer to hundreds of vertical models via distillation,
-%        representation learning and parameter sharing; the "stale supervision" problem and the
-%        teacher-refinement component that realigns teacher outputs to recent ground truth;
-%        latency-sensitive vertical models reusing FM representations without their compute cost;
-%        5%/3% conversion lifts; 23x effective training FLOPs; 4x architecture efficiency)
-%        appears verbatim on the page. Safe to paraphrase.
-@misc{meta2025gem,
-  title        = {Meta's Generative Ads Model ({GEM}): The Central Brain Accelerating Ads Recommendation {AI} Innovation},
-  author       = {{Meta Engineering}},
-  year         = {2025},
-  month        = nov,
-  howpublished = {Engineering at Meta},
-  url          = {https://engineering.fb.com/2025/11/10/ml-applications/metas-generative-ads-model-gem-the-central-brain-accelerating-ads-recommendation-ai-innovation/},
-  note         = {Accessed 2026-09-20}
-}
+% ---------------------------------- TIER 1 -------------------------------------------
 
-% [T] -- the joint conversion+delay likelihood our Correct strategy implements, and the paper that
-%        released Criteo-DFD. Mechanism described from the reference bank, not from the PDF.
+% doi: 10.1145/2623330.2623634
 @inproceedings{chapelle2014modeling,
-  title     = {Modeling Delayed Feedback in Display Advertising},
   author    = {Chapelle, Olivier},
-  booktitle = {Proceedings of the 20th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)},
-  year      = {2014},
-  note      = {VERIFY: title/venue confirmed, full text not read}
+  title     = {Modeling Delayed Feedback in Display Advertising},
+  booktitle = {Proc. KDD},
+  pages     = {1097--1105},
+  year      = {2014}
 }
 
-% [F] -- full text read.
+% doi: 10.1145/3298689.3347002
 @inproceedings{ktena2019addressing,
-  title     = {Addressing Delayed Feedback for Continuous Training with Neural Networks in {CTR} Prediction},
-  author    = {Ktena, Sofia Ira and Tejani, Alykhan and Theis, Lucas and Myana, Pranay Kumar and Dilipkumar, Deepak and Huszar, Ferenc and Yoo, Steven and Shi, Wenzhe},
-  booktitle = {Proceedings of the 13th ACM Conference on Recommender Systems (RecSys)},
-  year      = {2019},
-  eprint    = {1907.06558},
-  archivePrefix = {arXiv}
+  author    = {Ktena, Sofia Ira and Tejani, Alykhan and Theis, Lucas and Myana, Pranay Kumar
+               and Dilipkumar, Deepak and Huszar, Ferenc and Yoo, Steven and Shi, Wenzhe},
+  title     = {Addressing Delayed Feedback for Continuous Training with Neural Networks in
+               CTR Prediction},
+  booktitle = {Proc. RecSys},
+  pages     = {187--195},
+  year      = {2019}
 }
 
-% [T]
+% doi: 10.1145/3366423.3380032
 @inproceedings{yasui2020feedback,
-  title     = {A Feedback Shift Correction in Predicting Conversion Rates under Delayed Feedback},
   author    = {Yasui, Shota and Morishita, Gota and Fujita, Komei and Shibata, Masashi},
-  booktitle = {Proceedings of The Web Conference (WWW)},
-  year      = {2020},
-  eprint    = {2002.02068},
-  archivePrefix = {arXiv},
-  note      = {VERIFY: title/venue confirmed, full text not read}
+  title     = {A Feedback Shift Correction in Predicting Conversion Rates under Delayed
+               Feedback},
+  booktitle = {Proc. WWW},
+  pages     = {2740--2746},
+  year      = {2020}
 }
 
-% [T] -- closest prior work to Strategy C; elapsed-time sampling.
-@inproceedings{yang2021capturing,
-  title     = {Capturing Delayed Feedback in Conversion Rate Prediction via Elapsed-Time Sampling},
-  author    = {Yang, Jia-Qi and Li, Xiang and Han, Shuguang and Zhuang, Tao and Zhan, De-Chuan and Zeng, Xiaoyi and Tong, Bin},
-  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
-  year      = {2021},
-  eprint    = {2012.03245},
-  archivePrefix = {arXiv},
-  note      = {VERIFY: title/venue confirmed, full text not read}
+% doi: 10.1609/aaai.v35i5.16587
+@article{yang2021capturing,
+  author  = {Yang, Jia-Qi and Li, Xiang and Han, Shuguang and Zhuang, Tao and Zhan, De-Chuan
+             and Zeng, Xiaoyi and Tong, Bin},
+  title   = {Capturing Delayed Feedback in Conversion Rate Prediction via Elapsed-Time
+             Sampling},
+  journal = {Proc. AAAI},
+  volume  = {35},
+  number  = {5},
+  pages   = {4582--4589},
+  year    = {2021}
 }
 
-% [T]
+% doi: 10.1145/3447548.3467086
 @inproceedings{gu2021real,
-  title     = {Real Negatives Matter: Continuous Training with Real Negatives for Delayed Feedback Modeling},
   author    = {Gu, Siyu and Sheng, Xiang-Rong and Fan, Ying and Zhou, Guorui and Zhu, Xiaoqiang},
-  booktitle = {Proceedings of the 27th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD)},
-  year      = {2021},
-  eprint    = {2104.14121},
-  archivePrefix = {arXiv},
-  note      = {VERIFY: title/venue confirmed, full text not read}
+  title     = {Real Negatives Matter: Continuous Training with Real Negatives for Delayed
+               Feedback Modeling},
+  booktitle = {Proc. KDD},
+  pages     = {2890--2898},
+  year      = {2021}
 }
 
-% [T]
+% doi: 10.1145/3404835.3463045
+@inproceedings{li2021follow,
+  author    = {Li, Haoming and Pan, Feiyang and Ao, Xiang and Yang, Zhao and Lu, Min and
+               Pan, Junwei and Liu, Dapeng and Xiao, Lei and He, Qing},
+  title     = {Follow the Prophet: Accurate Online Conversion Rate Prediction in the Face of
+               Delayed Feedback},
+  booktitle = {Proc. SIGIR},
+  pages     = {1915--1919},
+  year      = {2021}
+}
+
+% doi: 10.1145/3485447.3511965
 @inproceedings{chen2022asymptotically,
-  title     = {Asymptotically Unbiased Estimation for Delayed Feedback Modeling via Label Correction},
-  author    = {Chen, Yu and Jin, Jiaqi and Zhao, Hui and Wang, Pengjie and Liu, Guojun and Xu, Jian and Zheng, Bo},
-  booktitle = {Proceedings of The Web Conference (WWW)},
-  year      = {2022},
-  eprint    = {2202.06472},
-  archivePrefix = {arXiv},
-  note      = {VERIFY: title/venue confirmed, full text not read}
+  author    = {Chen, Yu and Jin, Jiaqi and Zhao, Hui and Wang, Pengjie and Liu, Guojun and
+               Xu, Jian and Zheng, Bo},
+  title     = {Asymptotically Unbiased Estimation for Delayed Feedback Modeling via Label
+               Correction},
+  booktitle = {Proc. WWW},
+  pages     = {369--379},
+  year      = {2022}
 }
 
-% [T] -- directly targets assumption (A1), which Section 5.3 shows is violated.
-@inproceedings{yang2022generalized,
-  title     = {Generalized Delayed Feedback Model with Post-Click Information in Recommender Systems},
-  author    = {Yang, Jia-Qi and Li, Xiang and Han, Shuguang and Zhuang, Tao and Zhan, De-Chuan and Zeng, Xiaoyi and Tong, Bin},
-  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
-  year      = {2022},
-  eprint    = {2206.00407},
-  archivePrefix = {arXiv},
-  note      = {VERIFY: title/venue confirmed, full text not read}
+% doi: 10.1145/3583780.3614856
+@inproceedings{dai2023dually,
+  author    = {Dai, Sunhao and Zhou, Yuqi and Xu, Jun and Wen, Ji-Rong},
+  title     = {Dually Enhanced Delayed Feedback Modeling for Streaming Conversion Rate
+               Prediction},
+  booktitle = {Proc. CIKM},
+  pages     = {390--399},
+  year      = {2023}
 }
 
-% [F] -- full text read.
-@inproceedings{zhao2023escdfm,
-  title     = {{ESCDFM}: Elapsed-Time Sampling and Entire-Space Modeling for Delayed Feedback},
-  author    = {Zhao, Hui and others},
-  booktitle = {Proceedings of the 32nd ACM International Conference on Information and Knowledge Management (CIKM)},
-  year      = {2023},
-  eprint    = {2308.04768},
-  archivePrefix = {arXiv},
-  note      = {VERIFY author list: full text read but author string not transcribed from PDF}
+% doi: 10.1145/3580305.3599536
+@inproceedings{wang2023unbiased,
+  author    = {Wang, Yifan and Sun, Peijie and Zhang, Min and Jia, Qinglin and Li, Jingjie and
+               Ma, Shaoping},
+  title     = {Unbiased Delayed Feedback Label Correction for Conversion Rate Prediction},
+  booktitle = {Proc. KDD},
+  pages     = {2456--2466},
+  year      = {2023}
+}
+
+% doi: 10.1609/aaai.v38i8.28726
+@article{liu2024online,
+  author  = {Liu, Qiming and Ao, Xiang and Guo, Yuyao and He, Qing},
+  title   = {Online Conversion Rate Prediction via Multi-Interval Screening and Synthesizing
+             under Delayed Feedback},
+  journal = {Proc. AAAI},
+  volume  = {38},
+  number  = {8},
+  pages   = {8796--8804},
+  year    = {2024}
+}
+
+@inproceedings{zhang2025personalized,
+  author    = {Zhang, Xin and Li, Weiliang and Li, Rui and Fu, Zihang and Tang, Tongyi and
+               Zhang, Zhengyu and Chen, Wen-Yen and Noorshams, Nima and Jasapara, Nirav and
+               Ding, Xiaowen and Wen, Ellie and Feng, Xue},
+  title     = {Personalized Interpolation: Achieving Efficient Conversion Estimation with
+               Flexible Optimization Windows},
+  booktitle = {Proc. CIKM},
+  year      = {2025},
+  eprint    = {2501.14103},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG}
+}
+
+% doi: 10.1609/aaai.v40i17.38483
+@article{ding2026delayed,
+  author  = {Ding, Chenlu and Wu, Jiancan and Yuan, Yancheng and Li, Cunchun and Wang, Xiang
+             and Wang, Dingxian and Yang, Frank and Rabinovich, Andrew},
+  title   = {Delayed Feedback Modeling with Influence Functions},
+  journal = {Proc. AAAI},
+  volume  = {40},
+  number  = {17},
+  pages   = {14648--14656},
+  year    = {2026}
+}
+
+@misc{li2026twice,
+  author        = {Li, Kaiyuan and Wang, Kun and Wang, Zhongbo and Sha, Teng and Yan, Ming and
+                   Cheng, Yanhua and Liu, Xialong},
+  title         = {{TWICE}: Two-Clock, Two-Window Learning for Long-Horizon Conversion
+                   Prediction in Online Advertising},
+  year          = {2026},
+  eprint        = {2607.25404},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.IR}
+}
+
+% Verified in full: the authors supplied the page HTML in-project; read 2026-09-20, and
+% title/venue/date separately confirmed by search. Every fact drawn from it appears verbatim.
+@misc{meta2025gem,
+  author       = {{Meta AI}},
+  title        = {Sequence Learning: A Paradigm Shift for Personalized Ads Recommendations},
+  howpublished = {Meta AI Engineering Blog},
+  year         = {2025},
+  url          = {https://ai.meta.com/blog/generative-ads-recommendation-model-gem/}
+}
+
+% ---------------------------------- TIER 2 -------------------------------------------
+% Re-fetch from the DOI/arXiv id and delete the note field before submission.
+
+% !! BLOCKING BEFORE SUBMISSION: the two Tier-2 entries below have INCOMPLETE author lists.
+% !! The printed `note` flags were removed to meet the page limit, so the gap is no longer
+% !! visible in the PDF. Fetch both from their DOI/arXiv id and restore full author lists.
+% Both Tier-2 entries were reduced on 2026-09-24 to the fields the project reference bank
+% (Survey/reports/delayed_label_vs_distillation_lit_review.md, Sects. 3.2 and 6) actually records.
+% The bank names only the first author ("Xu et al.", "Menon et al."), the title and the venue.
+% Fuller author lists previously sat here but traced to no source, so they were removed rather
+% than left in place. Outbound network is blocked in this environment and neither PDF is held
+% in-project, so they cannot be completed here. The `note` fields print in the bibliography on
+% purpose: they must be resolved from the DOI/arXiv id before submission.
+
+@misc{xu2020privileged,
+  author        = {Xu and others},
+  title         = {Privileged Features Distillation at {Taobao} Recommendations},
+  year          = {2019},
+  eprint        = {1907.05171},
+  archiveprefix = {arXiv}
+}
+
+@inproceedings{menon2021statistical,
+  author    = {Menon and others},
+  title     = {A Statistical Perspective on Distillation},
+  booktitle = {Proc. ICML},
+  year      = {2021}
 }

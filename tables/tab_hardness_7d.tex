@@ -1,0 +1,25 @@
+\begin{tabular}{lrrrrr}
+\toprule
+training target & S0 & S1 & S2 & S3 & S4\\
+served parameters & 26K & 46K & 115K & 645K & 9.6M\\
+\midrule
+\multicolumn{6}{l}{\emph{hard: target is a realised label}}\\
+\quad \textsc{Fresh}\ ($\tilde y = \Yo$) & 0.8077 & 0.8127 & 0.8182 & 0.8227 & 0.8218\\
+\quad \textsc{Reweight}\ (loss-weighted $\Yo$) & 0.8218 & 0.8269 & 0.8334 & 0.8388 & 0.8396\\
+\quad \textsc{Wait}\ ($\tilde y = \Yv$, stale by $v$) & 0.8105 & 0.8156 & 0.8212 & 0.8286 & 0.8321\\
+\multicolumn{6}{l}{\emph{hybrid: realised label $+$ learned correction}}\\
+\quad \textsc{Twice} & 0.8120 & 0.8217 & 0.8260 & 0.8305 & 0.8327\\
+\quad \textsc{Correct} & 0.8281 & 0.8325 & 0.8374 & 0.8414 & 0.8434\\
+\quad \textsc{Distil} & 0.8273 & \textbf{0.8328} & \textbf{0.8377} & \textbf{0.8416} & \textbf{0.8437}\\
+\multicolumn{6}{l}{\emph{soft: model estimate alone, no realised label}}\\
+\quad \textsc{Soft}\ ($\tilde y = \hat p_v$) & \textbf{0.8285} & 0.8291 & 0.8333 & 0.8344 & 0.8352\\
+\midrule
+\multicolumn{6}{l}{\emph{inadmissible: $>1$ record per click}}\\
+\quad \textsc{Vanilla} & 0.8222 & 0.8280 & 0.8347 & 0.8403 & 0.8412\\
+\quad \textsc{Es-Dfm} & 0.8166 & 0.8288 & 0.8357 & 0.8383 & 0.8421\\
+\quad \textsc{Defuse} & 0.8171 & 0.8293 & 0.8362 & 0.8387 & 0.8423\\
+\quad \textsc{Ddfm} & 0.8275 & 0.8314 & 0.8367 & 0.8412 & 0.8436\\
+\midrule
+\quad Oracle \emph{(not causal)} & 0.8256 & 0.8311 & 0.8382 & 0.8438 & 0.8465\\
+\bottomrule
+\end{tabular}

@@ -8,3 +8,9 @@
 *.synctex.gz
 _local.*
 samplepaper.pdf
+
+# Python
+__pycache__/
+
+# Scratch build outputs
+missfont.log

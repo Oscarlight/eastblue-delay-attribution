@@ -20,12 +20,8 @@
 \documentclass[runningheads]{llncs}
 
 \usepackage[T1]{fontenc}
-% Springer requires Times. newtxtext/newtxmath is not in this TeX tree, and mathptmx breaks
-% because llncs.cls uses \boldmath (l.396) while mathptmx ships no bold math font. The `times'
-% package gives Times text -- which is what sets the page count -- and leaves math in Computer
-% Modern, avoiding the missing-font cascade.
-\usepackage{times}
-\renewcommand{\ttdefault}{cmtt}   % times.sty asks for Courier, whose T1 metrics are absent here
+%\usepackage{newtxtext}
+%\usepackage[varvw]{newtxmath}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath}
@@ -33,9 +29,7 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta, positioning, patterns}
 
-% mathptmx ships no bold math, and \mathbf{1} there resolves to a font this tree lacks. An upright
-% roman 1 is the standard indicator glyph and needs no extra font.
-\newcommand{\ind}{\mathrm{1}}
+\newcommand{\ind}{\mathbf{1}}
 \newcommand{\Yo}{Y^{(o)}}
 \newcommand{\Yv}{Y^{(v)}}
 
@@ -66,8 +60,9 @@ target hardness over the admissible remainder against a five-rung serving-capaci
 target that uses no realised label at all is the best arm, beating even the non-causal Oracle by
 $0.0029$ area under the ROC curve (AUC); by $46$\,K the hybrid targets of prior work overtake it;
 and beyond $10^{5}$ parameters the Oracle's true label is best, with the soft target now costing
-$0.0084$. A published baseline's prescribed auxiliary learning rate, meanwhile, is worth $0.0022$
-AUC to it --- roughly seven times the gap between the methods it is used to compare.
+$0.0084$. We further find that a published baseline's prescribed auxiliary
+learning rate costs it $0.0022$ AUC, roughly seven times the gap between the methods it is used to
+compare.
 \keywords{Conversion rate prediction \and Delayed feedback \and Knowledge distillation
 \and Online advertising.}
 \end{abstract}
@@ -90,10 +85,15 @@ retrofits~\cite{ding2026delayed}. Almost all share an unstated systems assumptio
 be written into the training stream more than once --- re-emitted when its conversion lands,
 replayed when its window closes, or relabelled at several horizons.
 
-Many production pipelines cannot do this. A common contract is that \emph{a click produces exactly
-one training example, emitted after a fixed wait $\Delta$, carrying the label
-$\ind[\text{conv\_ts} \le \text{click\_ts} + \Delta]$, and never revisited} --- so if the conversion
-has not arrived by then, the example is negative permanently. The reasons are mundane and therefore durable: amending a materialised example later means mutable
+Many production pipelines cannot do this. A common contract is:
+
+\begin{quote}
+A click produces \emph{exactly one} training example. It is emitted after a fixed wait $\Delta$,
+carries the label $\ind[\text{conv\_ts} \le \text{click\_ts} + \Delta]$, and is never revisited. If
+the conversion has not arrived by then, the example is negative permanently.
+\end{quote}
+
+The reasons are mundane and therefore durable: amending a materialised example later means mutable
 training data, duplicate-key handling, and a reproducibility story that breaks on every backfill,
 whereas freezing the label at $\Delta$ keeps the dataset append-only and the pipeline replayable.
 The contract is not our invention. It is the literal reading of the field's own reference baseline,
@@ -168,24 +168,41 @@ shows it is the best admissible choice at small serving capacity.
 have been distilled into serving models before, notably privileged features at
 Taobao~\cite{xu2020privileged}, and soft labels carry lower target variance than a hard Bernoulli
 label~\cite{menon2021statistical} --- the mechanism we invoke in Sect.~\ref{sec:hardness}. The
-privilege here is neither a feature nor scale but \emph{time}: the estimator is allowed to wait.
+privilege we exploit is neither a feature nor scale but \emph{time}: the estimator producing the
+soft target is allowed to wait.
 
 \section{Problem Formulation}\label{sec:formulation}
 % =====================================================================================
 
 \subsection{Notation and two clocks}
 
-\noindent\textbf{Notation.} For click $i$, $x_i$ are its features and $C_i$ its click time; if a
-conversion follows, $V_i$ is its arrival time and $D_i = V_i - C_i$ the delay, with $D_i = \infty$
-otherwise. The business \emph{attribution window} $v$ fixes the served target
-$\Yv_i = \ind[D_i \le v]$, knowable only at $C_i + v$. The pipeline emits click $i$'s record after a
-wait $\Delta$; at the shortest usable wait, the \emph{base observation age} $o \ll v$, the record can
-carry $\Yo_i = \ind[D_i \le o]$. We write $p_v(x) = P(\Yv{=}1 \mid x)$ for the estimand and $\hat
-p_v$ for a model of it, $w(x) = P(\Yv{=}1 \mid \Yo{=}0,\, x)$ for the residual correction shared by
-\textsc{Fsiw}, \textsc{Ulc} and \textsc{Es-Dfm}, and $\tilde y_i$ for the target actually written on
-the record. Following the long-horizon formulation of~\cite{li2026twice}, clicks are observed on a
-\emph{click clock} and conversions arrive on a separate \emph{conversion clock}: training must
-predict $\Yv$ from a record written before $\Yv$ is known.
+\begin{table}[t]
+\caption{Notation. Times are absolute seconds; $o \ll v$ throughout}
+\label{tab:notation}
+\centering\small
+\begin{tabular}{l l}
+\toprule
+symbol & meaning\\
+\midrule
+$x_i,\ C_i$ & features and click time of click $i$\\
+$V_i,\ D_i = V_i - C_i$ & conversion time and delay ($D_i = \infty$ if no conversion)\\
+$v$ & attribution window; the business-defined horizon of the served target\\
+$o$ & base observation age: the shortest wait at which a record may be emitted\\
+$\Delta$ & the pipeline's actual wait before emitting the record\\
+$\Yv_i = \ind[D_i \le v]$ & the served target, knowable only at $C_i + v$\\
+$\Yo_i = \ind[D_i \le o]$ & the label observable at emission when $\Delta = o$\\
+$p_v(x) = P(\Yv{=}1 \mid x)$ & the estimand; a model of it is written $\hat p_v$\\
+$w(x) = P(\Yv{=}1 \mid \Yo{=}0,\, x)$ & the residual correction shared by \textsc{Fsiw},
+\textsc{Ulc}, \textsc{Es-Dfm}\\
+$\tilde y_i$ & the target actually written on click $i$'s record\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:notation} fixes notation. Following the long-horizon formulation
+of~\cite{li2026twice}, clicks are observed on a \emph{click clock} and conversions arrive on a
+separate \emph{conversion clock}: a business attribution window $v$ fixes the served target $\Yv$,
+and training must predict $\Yv$ from a record written before $\Yv$ is known.
 
 \subsection{The single-visit constraint}
 
@@ -229,10 +246,9 @@ with $\alpha,\beta$ fitted on $\mathcal{D}_{\text{mat}}$ and frozen at emission,
 one-dimensional family ordered by how much the target depends on the realised label. We name three
 points on it, and they are the arms we compare:
 \begin{description}
-\item[hard] the target \emph{is} a realised label: $\alpha{=}1,\beta{=}0$ gives
-$\tilde y = \Yo$ (\textsc{Fresh}). Two arms supply a realised outcome from outside this
-$\Delta{=}o$ family and we group them here too: \textsc{Wait} emits $\tilde y = \Yv$ at
-$\Delta = v$, and the non-causal \textsc{Oracle} uses $\Yv$ at $\Delta = o$, where it is unknowable;
+\item[hard] the target \emph{is} a realised label: $\alpha{=}1,\beta{=}0$ recovers
+$\tilde y = \Yo$ (\textsc{Fresh}); the non-causal reference $\tilde y = \Yv$ (\textsc{Oracle}) lies
+outside the family, since $\Yv$ is not knowable at $\Delta = o$;
 \item[hybrid] realised label plus a learned correction: $\alpha{=}1,\beta{=}w$ gives
 $\tilde y = \Yo + (1-\Yo)w(x)$, which is exactly \textsc{Ulc}~\cite{wang2023unbiased};
 \item[soft] a model estimate alone: $\alpha{=}\beta{=}\hat p_v$ gives $\tilde y = \hat p_v(x)$,
@@ -284,17 +300,11 @@ delayed-positive rate and \textsc{Ddfm}'s $z_1$. Substituting \eqref{eq:heads} i
 \eqref{eq:family} gives the two admissible arms we sweep: the hybrid
 $\tilde y = \Yo + (1-\Yo)\,w^{T}(x)$, and the soft $\tilde y = \hat p_v(x)$. Because the estimator
 is training-only it is unbound by the serving budget; that asymmetry is what buys the right to wait.
-Varying it at a fixed served model (S2) shows that carrying the second read-out is free, so one
-estimator can supply both arms, and that enlarging it from $9.5$\,M to $57$\,M parameters does not
-help: Criteo-DFD's nine categorical fields hold $135{,}151$ distinct values against a table
-provisioned at $131{,}072$ rows \emph{per field}, so the estimator is already at the corpus's
-resolution and its saturation point coincides with its optimum.
 
 Two implementation points matter and are easy to get wrong; both cost us a run before they were
 fixed. First, the estimator's learning rate must be \emph{decoupled} from the served model's:
-sharing it makes a per-arm sweep tune two models with one scalar, and in our harness that made
-\textsc{Fsiw} degenerate to fresh-only behaviour (log-loss $0.514$, the fresh-only signature) while
-the sweep railed at the top of the grid, selecting for auxiliary convergence rather than CVR fit. Second, both read-outs must be withheld until
+sharing it makes a per-arm sweep tune two models with one scalar, which cost $0.0065$ AUC when it
+happened to \textsc{Fsiw}'s auxiliary in our harness. Second, both read-outs must be withheld until
 the estimator has seen a minimum number of matured rows --- the hybrid falling back to
 $\tilde y = \Yo$ and the soft arm likewise --- because a zero-initialised head asserts $0.5$ on
 every row, and a constant target yields a loss of $\ln 2$ at every learning rate. Without the guard
@@ -311,7 +321,7 @@ window where this bites even with the guard in place.
 with conversion timestamps. We follow the streaming replay of~\cite{li2026twice}: pre-train on days
 $[0,30)$, then stream $[30,60)$ with hourly cut-offs; at each cut-off a model consumes the records
 released in that hour and then predicts every click of the next hour exactly once, scored
-retrospectively against $\Yv$. Base observation age $o = 1$\,h; we report $v = 7$\,d in the main
+retrospectively against $\Yv$. Base observation age $o = 1$\,h. We report $v = 7$\,d in the main
 text and $v = 1$\,d as a second window.
 
 \noindent\textbf{Evaluation metrics.} Area under the ROC curve (AUC) is the headline metric, with
@@ -363,24 +373,24 @@ apart. We run the full stream and score only clicks whose entire revisit horizon
 
 Nine of fourteen methods exceed one record per click. Two counts are exact integers and confirm the
 instrument: \textsc{Pi} emits $2.00$, one per fixed-window head, and \textsc{Ftp} $3.00$, one per
-task plus its prophet. \textsc{If-Dfm} touches one click up to 99 times. Five arms stay at one record, two of them the
-uncorrected \textsc{Fresh} and \textsc{Wait}: among methods that correct for delay, only
-\textsc{Fsiw}, \textsc{Ulc} and \textsc{Twice} keep the served model single-visit.
+task plus its prophet. \textsc{If-Dfm} touches one click up to 99 times. Only \textsc{Fsiw},
+\textsc{Ulc} and \textsc{Twice} keep the served model single-visit.
 
 \smallskip\noindent\textbf{The field's anchor is inadmissible.} \textsc{Vanilla} --- ``each click
 trained once at base observation age $o$'' --- measures $1.08$ records per click, because matching
 any published \textsc{Vanilla} row requires also emitting the late conversion as a
-positive.\footnote{At the $v=30$\,d setting the published rows use, the fresh record alone predicts $0.107$
-against a $0.227$ base rate and reproduces no published \textsc{Vanilla} log-loss; the reading that
-does is fresh label plus a positive for conversions arriving after $o$.} Relative improvement reported against it is therefore
+positive.\footnote{The fresh record alone predicts $0.107$ against a $0.227$ base rate and cannot
+reproduce any published \textsc{Vanilla} log-loss; the reading that does is fresh label plus a
+positive for conversions arriving after $o$.} Relative improvement reported against it is therefore
 normalised by a baseline a single-visit pipeline cannot run.
 
 \smallskip\noindent\textbf{On auxiliaries.} \textsc{Fsiw}, \textsc{Ulc} and \textsc{Twice} emit one
 record for the served model but fit a \emph{separate} model on matured data, so they satisfy R1 and
-sit at the boundary of R2. We read the constraint as governing the served model's pipeline, under
-which they comply; the alternative reading --- that no later-arriving conversion may inform
-anything --- leaves only \textsc{Wait} standing and declares the problem unsolvable rather than
-selecting a method. Every arm we compare sits at exactly this level and no lower.
+sit at the boundary of R2. We read the constraint as governing the served model's training
+pipeline, under which they comply; the alternative reading --- that no later-arriving conversion
+may inform anything --- leaves only \textsc{Wait} standing and declares the problem unsolvable
+rather than selecting a method. We adopt the former and say so, because the choice determines which
+methods are admissible. Every arm we compare sits at exactly this level and no lower.
 
 % -------------------------------------------------------------------------------------
 \subsection{RQ2: is the admissible ordering readable?}\label{sec:tuning}
@@ -398,9 +408,10 @@ Two consequences follow. First, the effect is large relative to what it is used 
 the tuning alone moves \textsc{Correct} by $0.0022$, roughly seven times the $0.0003$ that separates
 it from \textsc{Distil} once both are tuned. A comparison at prescribed rates would have reported a
 $0.0025$ method gap that is $88\%$ tuning. Second, because the same change helps one baseline and
-hurts another, the bias is not systematic and cannot be corrected globally. We therefore sweep
-auxiliary rates per method and report tuned values throughout. This bounds how finely published
-orderings in this literature can be read.
+hurts another, the bias is not systematic and cannot be removed by a global correction. We
+therefore sweep auxiliary rates per method and report the tuned value for every arm; all numbers
+below are tuned. We flag this rather than bury it because it bounds how finely published orderings
+in this literature can be read.
 
 % -------------------------------------------------------------------------------------
 \subsection{RQ3: optimal target hardness tracks serving capacity}\label{sec:hardness}
@@ -452,20 +463,46 @@ not fully pay.
 
 \smallskip\noindent\textbf{Within the hybrid class, the source of the correction barely matters.}
 \textsc{Distil} and \textsc{Correct} differ by $-0.0007$ to $+0.0004$ across the ladder, reaching
-$p<0.05$ only at S3 and S4 and never exceeding $0.0003$ there. The two correctors hold the same
-parameter count to within $0.13\%$ ($9{,}444{,}801$ against $9{,}456{,}897$) and share a fit
-schedule, so this parity is measured with capacity and tuning both controlled. The choice of hybrid
-estimator is not where the value lies; the choice of \emph{hardness class} is.
+$p<0.05$ only at S3 and S4 and never exceeding $0.0003$ there. This is a parity result, and it is
+informative: the two correctors hold the same parameter count to within $0.13\%$
+($9{,}444{,}801$ against $9{,}456{,}897$) and are fit on the same schedule over the same matured
+stream, so the comparison is capacity-matched at the corrector as well as, at S4, at the served
+model. Having controlled for capacity and for tuning, what remains is small. The practical reading
+is that the choice of hybrid estimator is not where the value lies; the choice of \emph{hardness
+class} is.
 
-\smallskip\noindent\textbf{Compliance is free on this corpus.} The best admissible arm leads the
-best inadmissible one at \emph{every} rung ($+0.0010$ to $+0.0001$, S0 to S4), so duplication buys
-nothing here --- though the margin narrows with capacity.
+\smallskip\noindent\textbf{Compliance is nearly free.} The strongest inadmissible method,
+\textsc{Ddfm}, reaches $0.8436$ at S4 against the best admissible $0.8437$, and trails from S1
+upward. Giving up duplication costs essentially nothing on this corpus, which is the result that
+makes the constraint livable rather than merely binding.
 
-\smallskip\noindent\textbf{Second window.} At $v=1$\,d the ordering is unchanged and the inversion
-is stronger: at S0 the hybrid reaches $0.8352$ and \textsc{Correct} $0.8334$ against Oracle
-$0.8323$.
+\smallskip\noindent\textbf{Second window.} At $v=1$\,d the ordering of the admissible field is
+unchanged and the Oracle inversion is stronger: at S0 the hybrid reaches $0.8352$ and
+\textsc{Correct} $0.8334$ against an Oracle of $0.8323$.
 
 % -------------------------------------------------------------------------------------
+\subsection{RQ4: which part of the estimator matters?}\label{sec:ablation}
+% -------------------------------------------------------------------------------------
+
+\begin{table}[t]
+\caption{Estimator design at a fixed served model (S2). $\Delta$ is against the default}
+\label{tab:ablation}
+\centering\small
+\input{tables/tab_ablation_7d}
+\end{table}
+
+Table~\ref{tab:ablation} varies the matured-data estimator while holding the served model fixed.
+Removing its output entirely returns the hybrid to \textsc{Fresh}, which is the whole effect.
+Restricting the estimator to train only the head the served model consumes changes nothing, so
+carrying the second read-out is free --- which is what makes a single estimator able to supply both
+the hybrid and the soft arm. Enlarging it from $9.5$\,M to $57$\,M or $60$\,M parameters does not
+help and slightly hurts. Criteo-DFD's nine categorical fields hold $135{,}151$ distinct values in
+total against a table provisioned at $131{,}072$ rows \emph{per field}, so an estimator at full
+resolution has already absorbed every input the data can distinguish; the saturation point and the
+estimator's optimum coincide. We therefore read the estimator's size as saturated on this corpus
+rather than as a tuned choice.
+
+% =====================================================================================
 \section{Discussion: why the soft end is worth its cost}\label{sec:discussion}
 % =====================================================================================
 
@@ -485,24 +522,27 @@ objectives and nearly vestigial for long-window ones, while still binding every 
 $P(\Yv{=}1 \mid \Yo{=}0)$ conditioning. A soft target removes both dependencies: one estimator per
 objective, each waiting its own $v$ offline, and a served record carrying features only.
 
-The cost is one additional training-time model, with serving cost unchanged, which is the trade the
-hybrid methods already make.
+We are careful about what this licenses. Our measurements establish that the soft target is
+competitive only below roughly $10^{5}$ served parameters --- the regime a latency-bound ranker
+occupies, but a real restriction --- and for one objective, not several. The multi-objective
+argument is a consequence of Proposition~\ref{prop:axis}, not an experimental result of this paper;
+what the paper contributes to it is the crossover location. The cost is one additional
+training-time model, with serving cost unchanged, which is the trade the hybrid methods already
+make.
 
 \section{Limitations}\label{sec:limits}
 % =====================================================================================
 
 One public corpus with a single conversion event, so the multi-objective consolidation of
-Sect.~\ref{sec:discussion} is a consequence of Proposition~\ref{prop:axis}, not an experimental
-result; and our measurements place the soft target ahead only below roughly $10^{5}$ served
-parameters, which is a real restriction even though it is the regime a latency-bound ranker
-occupies. The constraint is one production
+Sect.~\ref{sec:discussion} is motivation rather than experiment. The constraint is one production
 contract among several: systems that do support replay may use the methods we rule out, and for them
 our audit is a cost accounting rather than a prohibition. Whether R2 binds auxiliary models is a
 reading we adopt explicitly (Sect.~\ref{sec:audit}), not a fact about the constraint. The ladder
-varies table rows at fixed embedding width. We report $v=1$ and $7$\,d but not $30$\,d: on a 60-day
-corpus a 30-day window leaves the estimator with no matured rows during model selection, so that
-comparison would measure the corpus's span-to-window ratio rather than the effect of a long window.
-All results are offline.
+varies table rows at fixed embedding width; other capacity axes may differ. We report $v=1$ and
+$7$\,d but not $30$\,d: on a 60-day corpus a 30-day window leaves the matured-data estimator with no
+rows at all during the model-selection slice, so the soft arm's learning rate is chosen against a
+constant target and the resulting comparison measures the corpus's span-to-window ratio rather than
+the effect of a long window. Finally, all results are offline; we make no online claim.
 
 % =====================================================================================
 \section{Conclusion}
@@ -513,12 +553,13 @@ constraint that many production pipelines already impose --- one training record
 frozen at a fixed wait --- and found that nine of fourteen published methods cannot satisfy it,
 including the baseline the field normalises against. The constraint is clarifying rather than merely
 restrictive: with one record carrying one target, the remaining design freedom collapses to how much
-of that target is a realised label, and the best choice along that axis is set by the served model's
-capacity. Below roughly $10^{5}$ parameters a corrected or wholly estimated target beats the true
-label, and at the smallest size a target that reads no label at all is the best admissible arm;
-above that the ordering reverses. Which hybrid estimator supplies the correction matters far less
---- $0.0003$ AUC --- than the tuning of the baselines it is compared against, which moves $0.0022$.
-Evaluating at a single capacity, as this literature does, hides all of this.
+of that target is a realised label. Along that axis the best choice is set by the served model's
+capacity, through two crossovers we locate and test. Below roughly $10^{5}$ parameters a corrected
+or wholly estimated target beats the true label, and at the smallest size a target that reads no
+label at all is best of any admissible arm; above that the ordering reverses. Which hybrid estimator
+supplies the correction turns out to matter far less --- $0.0003$ AUC --- than the tuning of the
+baselines it is compared against, which moves $0.0022$. Evaluating at a single capacity, as this
+literature does, hides all of this.
 
 \bibliographystyle{splncs04}
 \bibliography{refs}

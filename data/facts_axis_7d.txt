@@ -1,0 +1,11 @@
+target-hardness axis, v=7d, 5 seeds, origin-matched within each rung
+  soft   - hybrid: S0 +0.0012 (p=0.023)  S1 -0.0038 (p=6.8e-05)  S2 -0.0043 (p=0.00014)  S3 -0.0072 (p=4.3e-07)  S4 -0.0084 (p=2e-08)
+  hybrid - Oracle: S0 +0.0017 (p=0.0016)  S1 +0.0017 (p=0.0085)  S2 -0.0005 (p=0.012)  S3 -0.0021 (p=2.1e-05)  S4 -0.0029 (p=1.2e-05)
+  soft   - Oracle: S0 +0.0029 (p=0.0036)  S1 -0.0020 (p=0.0062)  S2 -0.0049 (p=0.00017)  S3 -0.0094 (p=8.4e-07)  S4 -0.0113 (p=3.5e-08)
+  Distil - Correct: S0 -0.0007 (p=0.13)  S1 +0.0004 (p=0.14)  S2 +0.0002 (p=0.21)  S3 +0.0003 (p=0.016)  S4 +0.0003 (p=0.023)
+  hybrid - Fresh : S0 +0.0196 (p=1e-07)  S1 +0.0201 (p=6.9e-08)  S2 +0.0194 (p=2.8e-09)  S3 +0.0189 (p=8.8e-09)  S4 +0.0218 (p=4.5e-08)
+  best at S0: DISTILL_pvmlp
+  best at S1: DISTILL_Tmlp
+  best at S2: DISTILL_Tmlp
+  best at S3: DISTILL_Tmlp
+  best at S4: DISTILL_Tmlp

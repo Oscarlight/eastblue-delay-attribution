@@ -1,0 +1,70 @@
+% Figure 1. Greyscale only (LNCS Sec. 4.5): distinction is by fill level, border weight and line
+% style, never by hue, and no pattern is laid under text. Drawn to the 12.2 cm LNCS text width.
+\begin{tikzpicture}[
+  font=\scriptsize,
+  rec/.style   = {draw, line width=0.4pt, rounded corners=0.6pt, minimum height=3.7mm,
+                  inner xsep=2.4pt, fill=black!6},
+  recx/.style  = {draw, line width=1.1pt, rounded corners=0.6pt, minimum height=3.7mm,
+                  inner xsep=2.4pt, fill=black!22},
+  tick/.style  = {draw, line width=0.4pt},
+  ax/.style    = {draw, -{Latex[length=1.3mm]}, line width=0.5pt},
+  lbl/.style   = {inner sep=0.8pt},
+  box/.style   = {draw, line width=0.4pt, rounded corners=1pt, align=center, inner sep=2.6pt,
+                  minimum height=5.6mm},
+]
+
+% =============== (a) records written for ONE click, on its own timeline ===============
+\def\tC{0.00} \def\tO{0.95} \def\tV{3.05} \def\tW{7.40}
+% panel (a) sits above panel (b); explanation lives in the caption, not in the artwork
+
+\node[lbl, anchor=west] at (-1.62,3.02) {\textbf{(a)} records written for one click};
+
+% lanes
+\node[lbl, anchor=east] at (-0.20,2.52) {multi-window};
+\node[rec,  anchor=west] at (1.55,2.52) {$d_1$};
+\node[recx, anchor=west] at (2.85,2.52) {$d_2$};
+\node[recx, anchor=west] at (4.20,2.52) {$\cdots$};
+\node[recx, anchor=west] at (5.75,2.52) {$d_K$};
+\node[lbl,  anchor=west] at (7.55,2.52) {$K$ records};
+
+\node[lbl, anchor=east] at (-0.20,1.82) {duplicating};
+\node[rec,  anchor=west] at (\tO,1.82) {$(x_i,\,0)$};
+\node[recx, anchor=west] at (\tV,1.82) {$(x_i,\,1)$};
+\node[lbl,  anchor=west] at (7.55,1.82) {2 records};
+
+\node[lbl, anchor=east] at (-0.20,1.12) {single-visit};
+\node[rec, anchor=west] at (\tO,1.12) {$(x_i,\,\Yo_i)$};
+\node[lbl, anchor=west] at (7.55,1.12) {1 record};
+
+% timeline
+\draw[ax] (\tC-0.15,0.38) -- (\tW,0.38);
+\foreach \p/\t in {\tC/{$C_i$}, \tO/{$C_i{+}o$}, \tV/{$V_i$}, 6.60/{$C_i{+}v$}} {
+  \draw[tick] (\p,0.46) -- (\p,0.30);
+  \node[lbl, below=0.5pt] at (\p,0.30) {\t};
+}
+\node[lbl, anchor=south east] at (\tW,0.42) {time};
+\draw[dotted, line width=0.4pt] (\tO,0.50) -- (\tO,0.94);
+\draw[dotted, line width=0.4pt] (\tV,0.50) -- (\tV,1.64);
+
+% =============== (b) where DISTIL spends each pipeline ===============
+\begin{scope}[yshift=-2.25cm]
+  \node[lbl, anchor=west] at (-1.62,1.62) {\textbf{(b)} \textsc{Distil}};
+
+  \node[box, fill=black!6, minimum width=2.6cm] (fresh) at (0.70,1.02)
+    {$\mathcal{D}_{\text{fresh}}$ \tiny($\Delta{=}o$, biased low)};
+  \node[box, fill=black!6, minimum width=2.6cm] (mat) at (0.70,0.00)
+    {$\mathcal{D}_{\text{mat}}$ \tiny($\Delta{=}v$, stale by $v$)};
+
+  \node[box, fill=black!16, minimum width=1.9cm, minimum height=6.4mm] (teach) at (4.05,0.00)
+    {teacher \tiny offline, large};
+  \node[box, fill=black!16, minimum width=1.9cm, minimum height=6.4mm, line width=1.0pt]
+    (stud) at (4.05,1.02) {\textbf{student} \tiny served, small};
+
+  \draw[ax] (mat.east)   -- (teach.west);
+  \draw[ax] (fresh.east) -- (stud.west);
+  \draw[ax] (teach.north) -- node[right=1.5pt] {$w^{T}(x)$} (stud.south);
+  \draw[ax, dashed] (stud.east) -- ++(0.75,0) node[right=-1pt] {$\hat p_v(x)$};
+
+\end{scope}
+
+\end{tikzpicture}
