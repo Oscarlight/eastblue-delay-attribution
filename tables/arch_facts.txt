@@ -1,0 +1,8 @@
+S0: rows=36 emb=2592 trunk=143293 total=145885
+S1: rows=64 emb=4608 trunk=143293 total=147901
+S2: rows=160 emb=11520 trunk=143293 total=154813
+S3: rows=896 emb=64512 trunk=143293 total=207805
+S4: rows=131072 emb=9437184 trunk=143293 total=9580477
+mlp: rows=131072 emb=9437184 trunk=19713 total=9456897
+T13: rows=131072 emb=56623104 trunk=649411 total=57272515
+T15: rows=131072 emb=56623104 trunk=3338515 total=59961619

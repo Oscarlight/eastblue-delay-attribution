@@ -1,0 +1,31 @@
+\subsection{\textsc{Wait}}\label{app:m-DISTILL-T}
+
+\paragraph{Definition.} Emit nothing until the window closes, then write one record carrying the true label.
+   The label is correct and Rule~1 is satisfied at $\Delta=v$, but the freshest data the model has
+   ever seen is $v$ old. This is the admissible production status quo and the anchor for
+   $\mathrm{RI}^{\textsc{wait}}$.
+
+\begin{equation}
+\tilde y_i = \Yv_i \ \text{ emitted at } \Delta=v
+\end{equation}
+
+\begin{center}\begin{tikzpicture}[font=\scriptsize,bx/.style={draw,line width=.4pt,rounded corners=1pt,inner sep=2.2pt,minimum height=4mm},ar/.style={draw,-{Latex[length=1.2mm]},line width=.4pt}]\node[bx] (f) {$\mathcal{D}_{\text{fresh}}$}; \node[bx,below=6mm of f] (m) {$\mathcal{D}_{\text{mat}}$};\node[bx,right=20mm of f] (s) {served}; \node[bx,right=6mm of m] (a) {aux};\draw[ar] (f)--(s); \draw[ar] (m)--(a); \draw[ar] (a) -| (s);\end{tikzpicture}\end{center}
+
+\paragraph{Compliance.} Measured at $1.00$ training records per click (maximum 1) over the 720-hour replay. Single-visit; admissible under Rule~2.
+
+\paragraph{Architecture.} The served model is the A0--A4 ladder of Table~\ref{tab:spec-ladder}, unchanged. No auxiliary model.
+
+\paragraph{Training data.}
+\begin{center}\small\begin{tabular}{lrr}
+\toprule
+ & $v=1$\,d & $v=7$\,d\\
+\midrule
+records consumed & 8{,}142{,}195 & 8{,}001{,}044\\
+positives ($\Yv$) & 1{,}107{,}281 & 1{,}477{,}736\\
+\bottomrule
+\end{tabular}\end{center}
+
+\paragraph{Experiment setup.} Five rungs A0--A4 $\times$ two windows $\times$ five seeds, learning rate selected per arm, per rung and per window from the grid of Sect.~\ref{app:matrix}. NE against streaming hour is recorded at seed~0.
+
+\paragraph{Results.} \emph{[pending the production run]}
+

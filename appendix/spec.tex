@@ -1,0 +1,140 @@
+% =====================================================================================
+% EXPERIMENTAL SPECIFICATION -- FOR REVIEW BEFORE THE v3 PRODUCTION RUN
+%
+% This appendix states the setup in full so it can be checked before any of it is executed.
+% Numbers already measured are marked [measured]; numbers awaiting the production run are
+% marked [pending] and are the only thing the run adds.
+% =====================================================================================
+\section{Experimental specification}\label{app:spec}
+
+\subsection{The two admissibility rules}\label{app:rules}
+
+Everything in this study is governed by two rules. They are stated first because they decide
+which methods may appear at all, and because one of them has a clause that is easy to get wrong.
+
+\begin{description}
+\item[Rule 1 (hard labels).] A training record emitted after a wait $\Delta$ carries the label
+  \begin{equation}\label{eq:rule1}
+  y_i \;=\; \ind[\,\text{conv\_ts}_i \;\le\; \text{click\_ts}_i + \Delta\,],
+  \end{equation}
+  and that value is frozen. A conversion arriving after $\text{click\_ts}_i + \Delta$ must not
+  flip it, must not add a second supervision signal, and must not be recovered later.
+
+\item[Rule 1b (teacher soft labels).] A soft target is exempt from~\eqref{eq:rule1} provided the
+  model producing it is itself trained under Rule 1. Concretely: the teacher trains only on
+  \emph{matured} records, whose hard labels obey~\eqref{eq:rule1} at $\Delta = v$; it is then
+  \emph{evaluated} on the \emph{freshest} clicks, those released at $\Delta = o$, and the student
+  trains on that read-out. This is admissible because the student's record carries no hard label
+  drawn from its own future --- only a deterministic function of its features, computed by
+  parameters frozen at emission.
+
+\item[Rule 2 (single visit).] Each click contributes \emph{exactly one} training record to the
+  served model, ever.
+\end{description}
+
+\paragraph{The causality obligation Rule 1b creates.} Rule 1b is only sound if the teacher is
+causal at the moment it scores. At cutoff $T_n$ our teacher has trained on clicks satisfying
+$C_i + v \le T_n$ and on nothing else, so every parameter it holds derives from outcomes that were
+knowable at $T_n$. Scoring a click released at $T_n$ therefore uses no future information. This is
+not assumed: it is enforced in code and checked by gate~G1 of
+\texttt{tr\_verify\_distill.py}, which fails the run if any teacher update reads a row whose
+window closes after the current cutoff.
+
+\paragraph{What Rule 1b does \emph{not} permit.} The teacher may not be trained on the fresh
+stream, and the student may not consume the teacher's read-out for a click whose window has since
+closed. The non-compliant reference \textsc{Wait}-hybrid, which trains the teacher on matured
+\emph{and} fresh records, measures $2.08$ visits per click and is reported only to bound what the
+rules cost.
+
+\subsection{Per-method compliance}\label{app:compliance}
+
+Table~\ref{tab:spec-compliance} classifies every method against both rules. Record counts are
+\emph{measured} over a full 720-hour replay, not asserted from the description.
+
+\begin{table}[h]
+\caption{Every method against both rules. \textsuperscript{1b} marks a soft target admissible
+under Rule~1b: the producing model is itself trained under Rule~1. Records per click are measured
+over a full 720-hour replay}
+\label{tab:spec-compliance}
+\centering\small
+\input{appendix/tab_spec_compliance}
+\end{table}
+
+\subsection{Common substrate}\label{app:substrate}
+
+\paragraph{Corpus and split.} Criteo-DFD~\cite{chapelle2014modeling}: $15{,}609{,}913$ clicks with
+conversion timestamps, of which $3{,}538{,}028$ ever convert at any horizon and the longest
+observed delay is $30.1$ days. Pre-train on days $[0,30)$, then stream $[30,60)$ with $719$ hourly
+cut-offs. At each cut-off a model consumes the records released in that hour and then predicts
+every click of the next hour exactly once, scored retrospectively against $\Yv$.
+
+\paragraph{Seeds do not change the data.} The split, the cut-offs and the per-hour cohorts are
+deterministic; a seed varies only parameter initialisation and minibatch order. This was verified
+rather than assumed: across all five seeds at a fixed rung the evaluation set is identical
+($n_{\text{eval}} = 8{,}196{,}131$, base rate $0.136139$, $719$ cohorts, all bit-identical). There
+is therefore one data specification, not five.
+
+\paragraph{Label statistics.} Table~\ref{tab:spec-labels} gives the label composition at both
+windows. The arithmetic is asserted in code: positives plus negatives equal $N$, the fresh
+positives are a strict subset of the served positives, and the observed rate equals
+$\text{base} \times F(o)$ to machine precision.
+
+\begin{table}[h]
+\caption{Label composition of the replay at both windows. $\Yo$ does not depend on $v$, so the
+fresh label is identical at both; only the target it must predict moves}
+\label{tab:spec-labels}
+\centering\small
+\input{appendix/tab_spec_labels}
+\end{table}
+
+Two facts drive much of the paper. First, $\Yo$ does not depend on $v$, so the fresh label is
+\emph{identical} at both windows ($1{,}649{,}879$ positives); only the target it is asked to
+predict moves. Second, censoring deepens with the window --- $F(o)$ falls from $0.769$ at $v=1$\,d
+to $0.574$ at $v=7$\,d --- so the fresh label is a good proxy at one day and a poor one at seven.
+
+\paragraph{Record timing.} Figure~\ref{fig:spec-timeline} shows, for one click, when its features
+are known, when each candidate label becomes knowable, and when it is scored.
+
+\input{appendix/fig_timeline.tikz}
+
+\subsection{The A0--A4 capacity ladder}\label{app:ladder}
+
+The previous S0--S4 ladder varied only hash rows against a \emph{fixed} trunk of $143{,}293$
+parameters, so total capacity spanned just $66\times$ and was trunk-dominated below the top rung;
+it was a table-resolution axis described as a capacity axis. A0--A4 pairs a rung of the
+compute-efficient frontier with a row count and lets the embedding width rise monotonically,
+giving $\sim\!10\times$ per step over $10{,}346\times$. A4 is byte-identical to S4, so the two
+ladders share a top rung.
+
+\begin{table}[h]
+\caption{The A0--A4 ladder, introspected from the instantiated models. The trunk grows with the
+tables, and embedding width rises monotonically $2\to4\to8$}
+\label{tab:spec-ladder}
+\centering\small
+\input{appendix/tab_spec_ladder}
+\end{table}
+
+\paragraph{Why the width rises.} Two earlier designs were rejected on measurement. Letting each
+frontier node keep its own width put A3 at $\text{emb}=48$ with $2048$ rows, which scored
+\emph{worse} than A2 at $\text{emb}=8$ with $1280$ rows despite ten times the parameters: on this
+corpus resolution carries the signal and width does not. Pinning the width at $8$ everywhere fixed
+that but removed the Oracle inversion entirely ($+0.0166 \to -0.0004$ at the bottom rung), because
+the inversion needs genuine representational starvation and $\text{emb}=8$ is already wide enough
+at $36$ rows. The adopted ladder raises width monotonically, $2\to4\to8$, keeping the starved
+bottom without the mid-ladder misallocation.
+
+\subsection{Experiment matrix}\label{app:matrix}
+
+\begin{table}[h]
+\caption{What the production run executes. Seeds replicate initialisation and shuffling only;
+the data is identical across them}
+\label{tab:spec-matrix}
+\centering\small
+\input{appendix/tab_spec_matrix}
+\end{table}
+
+Learning rates are selected \emph{per arm, per rung, per window} from
+$\{10^{-6}, 2.5{\times}10^{-6}, 10^{-5}, 5{\times}10^{-5}, 2{\times}10^{-4}, 5{\times}10^{-4},
+10^{-3}\}$ on a held-out chronological slice of the pre-training period, and auxiliary learning
+rates are swept per method for the reason established in Sect.~\ref{sec:tuning}. Curves are
+recorded at seed~0; all reported statistics use five seeds and paired tests over matched seeds.

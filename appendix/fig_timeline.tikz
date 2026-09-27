@@ -1,0 +1,42 @@
+% Record timing for one click. Greyscale, LNCS text width.
+% Laid out so nothing overlaps: the two pipeline rows sit above the axis at distinct heights with
+% their markers on the right, the teacher arrow runs BELOW them, and the two early tick labels are
+% staggered vertically because C_i and C_i+o are close together on any linear time axis.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm,
+  dot/.style={circle, fill, inner sep=1.15pt},
+  ar/.style={draw, -{Latex[length=1.2mm]}, line width=.45pt}]
+
+  % ---- pipeline rows (above the axis) -------------------------------------------------
+  % the row text states its own emission time, so no marker is needed on the row -- an inline
+  % dot at C_i+o would land inside the label
+  \node[anchor=west] at (0,2.30) {$\mathcal{D}_{\text{mat}}$: one record at $C_i{+}v$, label $\Yv_i$, frozen};
+  \node[anchor=west] at (0,1.72) {$\mathcal{D}_{\text{fresh}}$: one record at $C_i{+}o$, label $\Yo_i$, frozen};
+
+  % ---- Rule 1b: teacher trained on the matured pipeline, SCORED at the fresh release ---
+  \draw[ar] (9.05,1.15) -- node[above, pos=.52]
+      {teacher trained on $\mathcal{D}_{\text{mat}}$, \emph{scored} at $C_i{+}o$ (Rule 1b)} (1.62,1.15);
+
+  % ---- time axis ----------------------------------------------------------------------
+  \draw[ar] (-0.25,0) -- (10.3,0);
+  \node[anchor=south east] at (10.3,.04) {time};
+  \foreach \x in {0, 1.55, 4.4, 9.05} { \draw[line width=.45pt] (\x,.11) -- (\x,-.11); }
+  % staggered: C_i and C_i+o are adjacent, so their captions sit at different depths
+  \node[anchor=north, align=center] at (0,-.14)   {$C_i$\\features};
+  \node[anchor=north, align=center] at (1.75,-.70) {$C_i{+}o$\\fresh record};
+  \node[anchor=north, align=center] at (4.4,-.14) {$V_i$\\conversion};
+  \node[anchor=north, align=center] at (9.05,-.14) {$C_i{+}v$\\matured record};
+
+  % ---- evaluation ----------------------------------------------------------------------
+  \draw[dotted, line width=.4pt] (1.55,-1.38) -- (3.15,-1.38);
+  \node[anchor=west] at (3.22,-1.38)
+      {scored once in $(T_n,T_{n+1}]$, retrospectively against $\Yv$};
+\end{tikzpicture}
+\caption{Timing for a single click. Features are known at $C_i$. The fresh pipeline writes one
+record at $C_i{+}o$ carrying $\Yo$; the matured pipeline writes one at $C_i{+}v$ carrying $\Yv$.
+Rule~2 permits the served model only one of them. Under Rule~1b the teacher learns from the
+matured pipeline but is \emph{evaluated} at the fresh release, so the student's record carries a
+soft target and no future hard label}
+\label{fig:spec-timeline}
+\end{figure}

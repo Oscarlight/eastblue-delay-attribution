@@ -1,0 +1,32 @@
+\subsection{\textsc{Oracle}}\label{app:m-Oracle}
+
+\paragraph{Definition.} Not causal and not deployable: the fresh record is labelled with an outcome that had
+   not arrived when it was written. It exists to bound the recoverable gap. Sect.~\ref{sec:hardness}
+   shows it is \emph{not} an upper bound at small capacity, which is the paper's most surprising
+   result.
+
+\begin{equation}
+\tilde y_i = \Yv_i \ \text{ emitted at } \Delta=o
+\end{equation}
+
+\begin{center}\begin{tikzpicture}[font=\scriptsize,bx/.style={draw,line width=.4pt,rounded corners=1pt,inner sep=2.2pt,minimum height=4mm},ar/.style={draw,-{Latex[length=1.2mm]},line width=.4pt}]\node[bx] (f) {$\mathcal{D}_{\text{fresh}}$}; \node[bx,right=14mm of f] (s) {served}; \draw[ar] (f)--(s);\end{tikzpicture}\end{center}
+
+\paragraph{Compliance.} Measured at $1.00$ training records per click (maximum 1) over the 720-hour replay. Single-visit; admissible under Rule~2.
+
+\paragraph{Architecture.} The served model is the A0--A4 ladder of Table~\ref{tab:spec-ladder}, unchanged. No auxiliary model.
+
+\paragraph{Training data.}
+\begin{center}\small\begin{tabular}{lrr}
+\toprule
+ & $v=1$\,d & $v=7$\,d\\
+\midrule
+fresh records consumed & 8{,}197{,}914 & 8{,}197{,}914\\
+hard positives ($\Yo$) & 852{,}964 & 852{,}964\\
+label positives ($\Yv$) & 1{,}115{,}938 & 1{,}517{,}114\\
+\bottomrule
+\end{tabular}\end{center}
+
+\paragraph{Experiment setup.} Five rungs A0--A4 $\times$ two windows $\times$ five seeds, learning rate selected per arm, per rung and per window from the grid of Sect.~\ref{app:matrix}. NE against streaming hour is recorded at seed~0.
+
+\paragraph{Results.} \emph{[pending the production run]}
+

@@ -1,0 +1,23 @@
+\begin{tabular}{lrr}
+\toprule
+quantity & $v=1$\,d & $v=7$\,d\\
+\midrule
+\multicolumn{3}{l}{\emph{clicks in the replay $[0,60)$\,d}}\\
+\quad clicks $N$ & 15,609,913 & 15,609,913\\
+\quad ever converts (any horizon) & 3,538,028 & 3,538,028\\
+\midrule\multicolumn{3}{l}{\emph{served target $\Yv=\ind[D\le v]$}}\\
+\quad positives & 2,145,812 & 2,875,121\\
+\quad negatives & 13,464,101 & 12,734,792\\
+\quad positive rate & 0.1375 & 0.1842\\
+\midrule\multicolumn{3}{l}{\emph{fresh label $\Yo=\ind[D\le o]$, $o=1$\,h}}\\
+\quad positives & 1,649,879 & 1,649,879\\
+\quad negatives & 13,960,034 & 13,960,034\\
+\quad positive rate & 0.1057 & 0.1057\\
+\quad censored positives ($\Yv{=}1,\Yo{=}0$) & 495,933 & 1,225,242\\
+\quad $F(o)=P(D\le o\mid D\le v)$ & 0.7689 & 0.5738\\
+\midrule\multicolumn{3}{l}{\emph{delay of within-window converters (hours)}}\\
+\quad median & 0.17 & 0.44\\
+\quad p90 & 8.56 & 89.67\\
+\quad p99 & 23.17 & 160.67\\
+\bottomrule
+\end{tabular}

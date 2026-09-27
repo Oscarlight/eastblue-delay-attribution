@@ -314,10 +314,24 @@ released in that hour and then predicts every click of the next hour exactly onc
 retrospectively against $\Yv$. Base observation age $o = 1$\,h; we report $v = 7$\,d in the main
 text and $v = 1$\,d as a second window.
 
-\noindent\textbf{Evaluation metrics.} Area under the ROC curve (AUC) is the headline metric, with
-area under the precision--recall curve (PR-AUC) and log-loss (LL) reported at the capacity-matched
-rung. All numbers are means over five seeds, and every comparison is a paired $t$-test over matched
-seeds ($^{\ast}p<0.05$, $^{\ast\ast}p<0.01$).
+\noindent\textbf{Evaluation metrics.} Following~\cite{li2026twice}, every metric is computed per
+next-hour cohort and sample-count weighted over the streaming period. We report area under the ROC
+curve (AUC, $\uparrow$); average precision as PR-AUC ($\uparrow$); normalised entropy
+$\mathrm{NE} = \mathrm{LL} / H(\bar y)$ ($\downarrow$), the mean binary cross-entropy divided by the
+entropy $H(\bar y) = -\bar y\log\bar y - (1-\bar y)\log(1-\bar y)$ of the evaluation base rate
+$\bar y$, which makes the scale comparable across windows whose base rates differ; and calibration
+$\mathrm{Cal} = \sum_i \hat p_i / \sum_i y_i$, the predicted-over-actual ratio, for which $1$ is
+perfect and $<1$ under-predicts. For relative improvement we use \textsc{Twice}'s Eq.~(23) with the anchor $A$ made explicit,
+\begin{equation}\label{eq:ri}
+\mathrm{RI}^{A}(M) \;=\; \frac{M - M_{A}}{M_{\textsc{Oracle}} - M_{A}},
+\end{equation}
+the fraction of the $A$-to-Oracle gap a method recovers, computed per seed from matched $A$ and
+Oracle runs and then averaged; NE reductions give positive RI because both differences are
+negative. \textsc{Twice} sets $A = \textsc{Vanilla}$. We report $A = \textsc{Wait}$ and
+$A = \textsc{Fresh}$ instead, the two \emph{admissible} endpoints, for reasons
+Sect.~\ref{sec:hardness} sets out; each is run at every rung with its own selected learning rate,
+so every RI is normalised by the headroom at its own capacity. All numbers are means over five seeds and every comparison is a
+paired $t$-test over matched seeds ($^{\ast}p<0.05$, $^{\ast\ast}p<0.01$).
 
 \noindent\textbf{Compared methods.} Table~\ref{tab:hardness} names every arm and its point on the
 axis. \textsc{Reweight} is \textsc{Fsiw}~\cite{yasui2020feedback}, \textsc{Correct} is
@@ -417,13 +431,14 @@ $10^{5}$ served parameters an estimated target beats the true one}
 \end{figure}
 
 \begin{table}[t]
-\caption{AUC against serving capacity, $v=7$\,d, five seeds, arms grouped by their point on the
-hardness axis of Sect.~\ref{sec:axis}. Bold marks the best \emph{admissible} arm per column; the
-Oracle is not causal and the inadmissible block cannot be run at all, so neither competes for it.
-The bold entry moves from the soft target at S0 to the hybrid from S1 on}
+\caption{Accuracy and calibration against serving capacity, $v=7$\,d, five seeds, arms grouped by
+their point on the hardness axis of Sect.~\ref{sec:axis}. Leading zeros are omitted. Bold marks the
+best \emph{admissible} arm per column; the Oracle is not causal and the inadmissible block cannot
+be run at all, so neither competes for it, and calibration has no ``best'' so none is marked. On
+AUC the bold entry moves from the soft target at S0 to the hybrid from S1 on}
 \label{tab:hardness}
-\centering\small
-\input{tables/tab_hardness_7d}
+\centering\scriptsize\setlength{\tabcolsep}{2.6pt}
+\input{tables/tab_metrics_7d}
 \end{table}
 
 Table~\ref{tab:hardness} and Fig.~\ref{fig:hardness} are the main result, and the table is read
@@ -457,9 +472,77 @@ parameter count to within $0.13\%$ ($9{,}444{,}801$ against $9{,}456{,}897$) and
 schedule, so this parity is measured with capacity and tuning both controlled. The choice of hybrid
 estimator is not where the value lies; the choice of \emph{hardness class} is.
 
-\smallskip\noindent\textbf{Compliance is free on this corpus.} The best admissible arm leads the
-best inadmissible one at \emph{every} rung ($+0.0010$ to $+0.0001$, S0 to S4), so duplication buys
-nothing here --- though the margin narrows with capacity.
+\smallskip\noindent\textbf{Compliance is almost free on this corpus.} The best admissible arm
+leads the best inadmissible one at every rung on PR-AUC ($+0.0010$ to $+0.0042$, all
+$p\!<\!0.01$) and on AUC ($+0.0001$ to $+0.0014$). The single exception is NE at S4, where
+\textsc{Ddfm} leads by $0.0006$ ($p=0.019$); at S0--S3 the admissible arm leads on NE too.
+Duplication therefore buys almost nothing here, and what little it buys appears only in the
+likelihood at the largest capacity.
+
+\begin{table}[t]
+\caption{Relative improvement under both admissible anchors, $v=7$\,d; RI is
+Eq.~\eqref{eq:ri}, and \emph{0} marks the anchor itself. $\mathrm{RI}^{\textsc{wait}}$ is the
+recovered fraction of the freshness gap, $\mathrm{RI}^{\textsc{fresh}}$ of the label-truth gap.
+Values above $100$ are the Oracle inversion of Sect.~\ref{sec:hardness}, not defects;
+\textsc{Fresh}'s negative $\mathrm{RI}^{\textsc{wait}}$ says waiting beats a censored label. The
+\textsc{Vanilla}-anchored form of Eq.~(23) is reported in Table~\ref{tab:anchor}}
+\label{tab:ri}
+\centering\scriptsize\setlength{\tabcolsep}{2.6pt}
+\input{tables/tab_ri_7d}
+\end{table}
+
+\smallskip\noindent\textbf{Calibration favours the soft end, and confirms the formulation.}
+\textsc{Fresh} predicts $0.579$ of the actual conversion rate, within $1\%$ of the censoring factor
+$F(o)=0.574$ that Sect.~\ref{sec:formulation} predicts for $v=7$\,d --- the bias of
+$\mathcal{D}_{\text{fresh}}$ measured directly. Among corrected arms the soft target is the best
+calibrated at every rung ($1.007$ at S0 against $1.031$ for both hybrids and for the Oracle
+itself), since it distils an already-calibrated probability instead of correcting a realised label.
+Where $\hat p_v$ is priced rather than merely ranked, that favours the soft end beyond what AUC
+shows.
+
+\smallskip\noindent\textbf{What RI measures, and what it does not.} Relative improvement is the
+field's usual way of putting a small absolute gain in context, so it is worth establishing what it
+can carry here. Two properties matter, and the first is exact rather than empirical.
+
+Within a rung, $\mathrm{RI}^{A}(M) = (M - M_A)/(M_{\textsc{Oracle}} - M_A)$ is \emph{affine in $M$
+with positive slope}, since $M_{\textsc{Oracle}} > M_A$ for every anchor we consider. RI is
+therefore a monotone rescaling of the raw metric and cannot reorder methods: measured across all
+three candidate anchors, at all five rungs, the Spearman correlation between RI and the raw metric
+is exactly $1.000$. Whatever RI adds, it is not ranking information --- its entire content is the
+normalisation.
+
+That normalisation, however, is not stable. Table~\ref{tab:anchor} gives the denominator for the
+three anchors the literature and this paper make available. \textsc{Twice}'s Eq.~(23) divides by
+the \textsc{Vanilla}-to-Oracle gap, but \textsc{Vanilla} duplicates
+(Sect.~\ref{sec:audit}) and consequently sits only $0.0031$--$0.0053$ AUC below the Oracle; dividing
+by a gap that small amplifies every difference four- to five-fold and throws RI outside $[0,100]$
+in $34$ of $50$ cells, reaching $-518\%$. The two admissible anchors have gaps between $2.7$ and
+$6.2$ times larger, and flatter across the ladder --- their gap varies by $17\%$
+(\textsc{Wait}) and $33\%$ (\textsc{Fresh}) of its mean, against $59\%$ for \textsc{Vanilla} ---
+and their RI stays in range in $38$ and $43$ of $50$ cells respectively. Since the same method can be assigned an RI of $-346\%$ or $+16\%$ at the same rung
+depending only on which arm is called ``Vanilla'', RI is not comparable across papers unless the
+anchor is stated; it is a property of the denominator at least as much as of the method.
+
+We therefore report both admissible anchors in Table~\ref{tab:ri}, and they measure different
+things. $\mathrm{RI}^{\textsc{fresh}}$ holds $\Delta = o$ fixed and varies only the target, so its
+denominator is exactly the span of the hardness axis: it asks what fraction of the available
+\emph{label-truth} gain a target captures. $\mathrm{RI}^{\textsc{wait}}$ compares against emitting
+at $\Delta = v$ with the true label, the admissible production status quo, and so asks what
+fraction of the \emph{freshness} gain is recovered. Read either way the conclusions of this section
+are unchanged, and two of them become legible at a glance: \textsc{Soft} falls from $119\%$ to
+$21\%$ across the ladder, which is the first crossover in a single number, and the hybrids exceed
+$100\%$ at S0 and S1, which is the Oracle inversion restated. \textsc{Fresh}'s negative
+$\mathrm{RI}^{\textsc{wait}}$ is likewise real: waiting beats training on a censored label.
+
+\begin{table}[t]
+\caption{Why the RI anchor matters. The denominator of Eq.~\eqref{eq:ri} for the three candidate
+anchors, and the resulting spread over all arms and rungs. \textsc{Vanilla} duplicates, which puts
+it within $0.0053$ AUC of the Oracle and makes the quotient unstable; the two admissible anchors
+are $2.7$ to $6.2$ times further from it and flatter across the ladder}
+\label{tab:anchor}
+\centering\small\setlength{\tabcolsep}{4pt}
+\input{tables/tab_anchor_7d}
+\end{table}
 
 \smallskip\noindent\textbf{Second window.} At $v=1$\,d the ordering is unchanged and the inversion
 is stronger: at S0 the hybrid reaches $0.8352$ and \textsc{Correct} $0.8334$ against Oracle
@@ -519,6 +602,12 @@ label, and at the smallest size a target that reads no label at all is the best 
 above that the ordering reverses. Which hybrid estimator supplies the correction matters far less
 --- $0.0003$ AUC --- than the tuning of the baselines it is compared against, which moves $0.0022$.
 Evaluating at a single capacity, as this literature does, hides all of this.
+
+% =====================================================================================
+\appendix
+% =====================================================================================
+\input{appendix/spec}
+\input{appendix/methods}
 
 \bibliographystyle{splncs04}
 \bibliography{refs}

@@ -35,7 +35,12 @@ LADDER = ["S0", "S1", "S2", "S3", "S4"]
 #: categorical hash rows per rung and the resulting parameter count. The ladder varies table rows
 #: at a fixed embedding dimension of 8, so it is a pure serving-capacity axis.
 ROWS = {"S0": 36, "S1": 64, "S2": 160, "S3": 896, "S4": 131072}
-PARAMS = {"S0": "26K", "S1": "46K", "S2": "115K", "S3": "645K", "S4": "9.6M"}
+#: Introspected from the instantiated models by _arch.py, never hand-typed (gate G6). The
+#: hardcoded literal that used to sit here read 26K/46K/115K/645K/9.6M and was wrong at four of
+#: five rungs: the Wukong trunk is a fixed 143,293 parameters at every rung, so the totals start
+#: at 146K rather than 26K and no rung is below 10^5.
+import _arch  # noqa: E402
+PARAMS = _arch.params_map()
 
 #: arm -> (paper name, family). Names, never letters, and never the registry key.
 NAME = {
@@ -490,3 +495,5 @@ if __name__ == "__main__":
     fig_audit()
     tab_ladder("7d"); tab_matched("7d"); tab_ablation("7d"); fig_capacity("7d"); facts("7d")
     tab_hardness("7d"); fig_hardness("7d"); facts_axis("7d")
+    import _metrics_table, sys
+    _metrics_table.build(sys.modules[__name__], "7d")

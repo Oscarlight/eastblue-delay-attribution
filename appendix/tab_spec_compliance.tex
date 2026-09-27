@@ -1,0 +1,18 @@
+\begin{tabular}{l l c c r}
+\toprule
+method & target $\tilde y$ & Rule 1 & Rule 2 & rec./click\\
+\midrule
+\textsc{Fresh} & $\tilde y=\Yo$ & \checkmark & \checkmark & 1.00\\
+\textsc{Reweight} & $\tilde y=\Yo$, loss $\times\,w_{\text{iw}}(x)$ & \checkmark & \checkmark & 1.00\\
+\textsc{Wait} & $\tilde y=\Yv$ at $\Delta{=}v$ & \checkmark & \checkmark & 1.00\\
+\textsc{Twice} & $\tilde y=\Yo$ + delay head & \checkmark & \checkmark & 1.00\\
+\textsc{Correct} & $\tilde y=\Yo+(1-\Yo)\,w(x)$ & \checkmark & \checkmark & --\\
+\textsc{Distil} & $\tilde y=\Yo+(1-\Yo)\,w^{T}(x)$ & \checkmark\,\textsuperscript{1b} & \checkmark & --\\
+\textsc{Soft} & $\tilde y=\hat p_v(x)$ & \checkmark\,\textsuperscript{1b} & \checkmark & --\\
+\textsc{Vanilla} & $\Yo$ plus a late positive & $\times$ & $\times$ & 1.08\\
+\textsc{ES-DFM} & duplicated delayed positive & $\times$ & $\times$ & 1.08\\
+\textsc{DEFUSE} & duplicated stream + correction & $\times$ & $\times$ & 1.08\\
+\textsc{DDFM} & both streams together & $\times$ & $\times$ & 1.89\\
+\textsc{Oracle} & $\tilde y=\Yv$ at $\Delta{=}o$ & $\times$ & \checkmark & 1.00\\
+\bottomrule
+\end{tabular}

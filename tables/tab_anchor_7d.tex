@@ -1,0 +1,11 @@
+\begin{tabular}{lrrrrrcc}
+\toprule
+anchor & \multicolumn{5}{c}{Oracle $-$ anchor (AUC)} & RI range & outside\\
+\cmidrule(lr){2-6}
+ & S0 & S1 & S2 & S3 & S4 & \% & $[0,100]$\\
+\midrule
+\textsc{Vanilla}, duplicating --- \emph{inadmissible} & .0034 & .0031 & .0035 & .0034 & .0053 & $[-518, 186]$ & 34/50\\
+\textsc{Fresh}, $\Delta{=}o$, censored label & .0180 & .0184 & .0200 & .0211 & .0247 & $[15, 116]$ & 7/50\\
+\textsc{Wait}, $\Delta{=}v$, true label & .0151 & .0155 & .0170 & .0152 & .0144 & $[-72, 119]$ & 12/50\\
+\bottomrule
+\end{tabular}
