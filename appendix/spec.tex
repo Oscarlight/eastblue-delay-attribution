@@ -7,54 +7,127 @@
 % =====================================================================================
 \section{Experimental specification}\label{app:spec}
 
-\subsection{The two admissibility rules}\label{app:rules}
+\subsection{Admissibility: two hard rules and one practical one}\label{app:rules}
 
-Everything in this study is governed by two rules. They are stated first because they decide
-which methods may appear at all, and because one of them has a clause that is easy to get wrong.
+Three rules govern this study. Two are \emph{hard}: violating them means using information that did
+not exist, which no amount of engineering can repair. The third is \emph{practical}: it can be
+violated, at a cost in pipeline complexity, and drawing the line in the wrong place here was our
+own earlier mistake.
 
 \begin{description}
-\item[Rule 1 (hard labels).] A training record emitted after a wait $\Delta$ carries the label
-  \begin{equation}\label{eq:rule1}
+\item[Rule 1a (hard --- label knowability).] A training record emitted after a wait $\Delta$
+  carries the label
+  \begin{equation}\label{eq:rule1a}
   y_i \;=\; \ind[\,\text{conv\_ts}_i \;\le\; \text{click\_ts}_i + \Delta\,],
   \end{equation}
-  and that value is frozen. A conversion arriving after $\text{click\_ts}_i + \Delta$ must not
-  flip it, must not add a second supervision signal, and must not be recovered later.
+  whose value must be \emph{knowable at the moment of emission} and is thereafter frozen. A
+  conversion arriving later may not flip that record's label, and no update may revise the
+  supervision already given for it.
 
-\item[Rule 1b (teacher soft labels).] A soft target is exempt from~\eqref{eq:rule1} provided the
-  model producing it is itself trained under Rule 1. Concretely: the teacher trains only on
-  \emph{matured} records, whose hard labels obey~\eqref{eq:rule1} at $\Delta = v$; it is then
-  \emph{evaluated} on the \emph{freshest} clicks, those released at $\Delta = o$, and the student
-  trains on that read-out. This is admissible because the student's record carries no hard label
-  drawn from its own future --- only a deterministic function of its features, computed by
-  parameters frozen at emission.
+\item[Rule 1b (hard --- teacher soft labels).] A soft target is exempt from~\eqref{eq:rule1a}
+  provided the model producing it is itself trained under Rule~1a. The teacher trains only on
+  matured records, whose hard labels satisfy~\eqref{eq:rule1a} at $\Delta=v$; it is then
+  \emph{evaluated} on the freshest clicks, those released at $\Delta=o$, and the student trains on
+  that read-out. The student's record then carries no hard label drawn from its own future, only a
+  deterministic function of its features under parameters frozen at emission.
 
-\item[Rule 2 (single visit).] Each click contributes \emph{exactly one} training record to the
-  served model, ever.
+\item[Rule 2 (practical --- one served record per click).] The served model consumes exactly one
+  training record per click. This is a property of the serving pipeline, not of information: it
+  keeps the dataset append-only, avoids duplicate-key handling, and makes backfills replayable.
 \end{description}
 
-\paragraph{The causality obligation Rule 1b creates.} Rule 1b is only sound if the teacher is
-causal at the moment it scores. At cutoff $T_n$ our teacher has trained on clicks satisfying
-$C_i + v \le T_n$ and on nothing else, so every parameter it holds derives from outcomes that were
-knowable at $T_n$. Scoring a click released at $T_n$ therefore uses no future information. This is
-not assumed: it is enforced in code and checked by gate~G1 of
-\texttt{tr\_verify\_distill.py}, which fails the run if any teacher update reads a row whose
-window closes after the current cutoff.
+\paragraph{Why Rule 2 is practical and not hard.} It is tempting to state Rule~2 as ``a click is
+read once'', and we did so in an earlier draft. That is false for every corrected method in this
+paper. \textsc{Correct} reads each click \emph{twice}: once from the fresh pipeline at $\Delta=o$,
+where it supplies the served record and its realised label, and again from the matured pipeline at
+$\Delta=v$, where it supplies a row for fitting $w(x)$. The same is true of \textsc{Reweight}, of
+\textsc{Twice}'s delay head, and of both distillation arms. What Rule~2 actually constrains is the
+\emph{served model's record stream}; the estimator behind the correction necessarily re-reads the
+click once its window has closed, and that second read is what makes these methods work at all.
+Stated as an absolute, Rule~2 would eliminate every method except \textsc{Fresh} and \textsc{Wait}
+and leave nothing to study.
 
-\paragraph{What Rule 1b does \emph{not} permit.} The teacher may not be trained on the fresh
-stream, and the student may not consume the teacher's read-out for a click whose window has since
-closed. The non-compliant reference \textsc{Wait}-hybrid, which trains the teacher on matured
-\emph{and} fresh records, measures $2.08$ visits per click and is reported only to bound what the
-rules cost.
+\paragraph{The causality obligation Rule 1b creates.} Rule~1b is sound only if the teacher is
+causal when it scores. At cutoff $T_n$ our teacher has trained on clicks satisfying
+$C_i + v \le T_n$ and on nothing else, so every parameter it holds derives from outcomes knowable
+at $T_n$; scoring a click released at $T_n$ therefore uses no future information. This is enforced
+in code and checked by gate~G1 of \texttt{tr\_verify\_distill.py}, which fails the run if a teacher
+update reads a row whose window closes after the current cutoff. What Rule~1b does \emph{not}
+permit is training the teacher on the fresh stream: the non-compliant reference that does so
+measures $2.08$ served records per click and is reported only as a bound.
 
-\subsection{Per-method compliance}\label{app:compliance}
+\subsection{Vetting every method against Rule 1a}\label{app:compliance}
 
-Table~\ref{tab:spec-compliance} classifies every method against both rules. Record counts are
-\emph{measured} over a full 720-hour replay, not asserted from the description.
+Rule~1a is the gate that decides what may be run at all, so each method is checked against it
+individually. The question in each case is narrow and mechanical: \emph{for every record the
+method writes, was that record's label knowable when it was written?} Records per click are
+measured over a full 720-hour replay (Table~\ref{tab:spec-compliance}).
+
+\paragraph{\textsc{Fresh} --- satisfies 1a.} One record at $\Delta=o$ with $y=\ind[D_i\le o]$. At
+$C_i+o$ the pipeline knows whether the conversion has arrived, so the value is knowable, and it is
+never revisited. Measured $1.00$ records per click.
+
+\paragraph{\textsc{Wait} --- satisfies 1a.} One record at $\Delta=v$ with $y=\ind[D_i\le v]$,
+emitted only once the window has closed. Knowable by construction. Measured $1.00$.
+
+\paragraph{\textsc{Reweight} (\textsc{Fsiw}) --- satisfies 1a.} The served record is
+\textsc{Fresh}'s, untouched. The importance weights come from two classifiers fitted on matured
+rows, each of which satisfies~\eqref{eq:rule1a} at $\Delta=v$. No record carries an unknowable
+label. Measured $1.00$ served records per click.
+
+\paragraph{\textsc{Twice} --- satisfies 1a.} The CVR tower sees one fresh record with $\Yo$.
+Conversion-clock arrivals train a \emph{separate} delay head and create no CVR record; each arrival
+is an event observed at the time it is consumed. Measured $1.00$ served records per click.
+
+\paragraph{\textsc{Correct} (\textsc{Ulc}) --- satisfies 1a.} Fresh record with $\Yo$, plus $w(x)$
+fitted on matured rows. Both label sets are knowable at their own emission times. Measured $1.00$
+served records per click, with a second, non-served read of the same click for the estimator.
+
+\paragraph{\textsc{Correct-Distill} and \textsc{Distill-Only} --- satisfy 1a via 1b.} The teacher
+trains only on matured rows and is scored at the fresh release.
+\textsc{Distill-Only} is the strongest case: its served record carries no realised label at all, so
+Rule~1a is satisfied \emph{vacuously} --- there is nothing for a late conversion to revise
+(Proposition~\ref{prop:axis}(ii)). Both measured $1.00$.
+
+\paragraph{\textsc{Oracle} --- \emph{violates} 1a.} The record is emitted at $\Delta=o$ but
+labelled $\Yv=\ind[D_i\le v]$ with $v>o$. At $C_i+o$ that value is not knowable: the conversion may
+arrive at any point up to $C_i+v$. This is the one arm in the study that reads the future, and it
+is retained \emph{only} as a non-causal bound, never as a method. Its record count is $1.00$, which
+is precisely why records per click cannot by itself decide admissibility.
+
+\paragraph{\textsc{If-Dfm} --- \emph{violates} 1a.} An influence-function update is applied when a
+label reverses, which revises supervision already given for an emitted record. The label is
+therefore not frozen, and the revision is driven by information that arrived after emission. The
+instrument measures $2.90$ visits per click and up to $99$ for a single click.
+
+\paragraph{The duplicating family --- satisfies 1a, violates Rule 2.} This is the case where our
+earlier draft was wrong, and it is worth stating precisely. \textsc{Vanilla}, \textsc{Es-Dfm} and
+\textsc{Defuse} ($1.08$ records per click) and \textsc{Ddfm} ($1.89$) write a second record when
+the conversion lands. That second record is emitted at $\Delta'=D_i$ and labelled positive, and at
+that moment the label \emph{is} knowable --- so, read strictly, each record individually satisfies
+Rule~1a. The same holds for the multi-window family, \textsc{Ftp} ($3.00$), \textsc{Miss} ($2.05$)
+and \textsc{Pi} ($2.00$), whose heads relabel the same click at their own horizons: each head's
+label is knowable at its own horizon. What these methods violate is Rule~2, and they violate it
+structurally, because duplication \emph{is} the mechanism rather than an implementation detail.
+
+Two consequences follow, and we state them rather than let the record count imply them. First,
+records per click is not a proxy for Rule~1a: \textsc{Oracle} writes one record and violates it,
+while \textsc{Ddfm} writes $1.89$ and does not. Second, excluding the duplicating family from the
+production run is a \emph{scope} decision --- this paper studies what a single-served-record
+pipeline can do --- and not a claim that those methods use unknowable information. Where a system
+does support duplication, they remain available, and our audit is then a cost accounting rather
+than a prohibition.
+
+\paragraph{What the production run includes.} The seven arms that satisfy both hard rules
+(\textsc{Fresh}, \textsc{Reweight}, \textsc{Wait}, \textsc{Twice}, \textsc{Correct},
+\textsc{Correct-Distill}, \textsc{Distill-Only}) plus \textsc{Oracle} as an explicitly non-causal
+bound. The duplicating and multi-window families are documented above and in
+Table~\ref{tab:spec-compliance} but are not run.
 
 \begin{table}[h]
-\caption{Every method against both rules. \textsuperscript{1b} marks a soft target admissible
-under Rule~1b: the producing model is itself trained under Rule~1. Records per click are measured
-over a full 720-hour replay}
+\caption{Every method against the rules. \textsuperscript{1b} marks a soft target admissible under
+Rule~1b. Records per click are measured over a full 720-hour replay; note that the count does not
+determine Rule~1a, since \textsc{Oracle} writes one record and still reads the future}
 \label{tab:spec-compliance}
 \centering\small
 \input{appendix/tab_spec_compliance}

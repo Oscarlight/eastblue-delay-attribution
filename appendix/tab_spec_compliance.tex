@@ -1,18 +1,23 @@
-\begin{tabular}{l l c c r}
+\begin{tabular}{l l c@{\hskip 1.1em} c@{\hskip 1.1em} r@{\hskip 1.1em} c}
 \toprule
-method & target $\tilde y$ & Rule 1 & Rule 2 & rec./click\\
+method & target $\tilde y$ & Rule 1a & Rule 2 & rec./click & in run\\
 \midrule
-\textsc{Fresh} & $\tilde y=\Yo$ & \checkmark & \checkmark & 1.00\\
-\textsc{Reweight} & $\tilde y=\Yo$, loss $\times\,w_{\text{iw}}(x)$ & \checkmark & \checkmark & 1.00\\
-\textsc{Wait} & $\tilde y=\Yv$ at $\Delta{=}v$ & \checkmark & \checkmark & 1.00\\
-\textsc{Twice} & $\tilde y=\Yo$ + delay head & \checkmark & \checkmark & 1.00\\
-\textsc{Correct} & $\tilde y=\Yo+(1-\Yo)\,w(x)$ & \checkmark & \checkmark & --\\
-\textsc{Distil} & $\tilde y=\Yo+(1-\Yo)\,w^{T}(x)$ & \checkmark\,\textsuperscript{1b} & \checkmark & --\\
-\textsc{Soft} & $\tilde y=\hat p_v(x)$ & \checkmark\,\textsuperscript{1b} & \checkmark & --\\
-\textsc{Vanilla} & $\Yo$ plus a late positive & $\times$ & $\times$ & 1.08\\
-\textsc{ES-DFM} & duplicated delayed positive & $\times$ & $\times$ & 1.08\\
-\textsc{DEFUSE} & duplicated stream + correction & $\times$ & $\times$ & 1.08\\
-\textsc{DDFM} & both streams together & $\times$ & $\times$ & 1.89\\
-\textsc{Oracle} & $\tilde y=\Yv$ at $\Delta{=}o$ & $\times$ & \checkmark & 1.00\\
+\textsc{Fresh} & $\tilde y=\Yo$ & \checkmark & \checkmark & 1.00 & \checkmark\\
+\textsc{Reweight} & $\tilde y=\Yo$, loss $\times\,w_{\text{iw}}(x)$ & \checkmark & \checkmark & 1.00 & \checkmark\\
+\textsc{Wait} & $\tilde y=\Yv$ at $\Delta{=}v$ & \checkmark & \checkmark & 1.00 & \checkmark\\
+\textsc{Twice} & $\tilde y=\Yo$ + delay head & \checkmark & \checkmark & 1.00 & \checkmark\\
+\textsc{Correct} & $\tilde y=\Yo+(1-\Yo)\,w(x)$ & \checkmark & \checkmark & 1.00 & \checkmark\\
+\textsc{Correct-Distill} & $\tilde y=\Yo+(1-\Yo)\,w^{T}(x)$ & \checkmark\,\textsuperscript{1b} & \checkmark & 1.00 & \checkmark\\
+\textsc{Distill-Only} & $\tilde y=\hat p_v(x)$ & \checkmark\,\textsuperscript{1b} & \checkmark & 1.00 & \checkmark\\
+\textsc{Oracle} & $\tilde y=\Yv$ at $\Delta{=}o$ & $\times$ & \checkmark & 1.00 & \checkmark\\
+\midrule
+\textsc{Vanilla} & $\Yo$ plus a late positive & \checkmark & $\times$ & 1.08 & $\times$\\
+\textsc{Es-Dfm} & duplicated delayed positive & \checkmark & $\times$ & 1.08 & $\times$\\
+\textsc{Defuse} & duplicated stream + correction & \checkmark & $\times$ & 1.08 & $\times$\\
+\textsc{Ddfm} & both streams together & \checkmark & $\times$ & 1.89 & $\times$\\
+\textsc{Miss} & delayed positive into every head & \checkmark & $\times$ & 2.05 & $\times$\\
+\textsc{Ftp} & $K$ maturity-gated tasks + prophet & \checkmark & $\times$ & 3.00 & $\times$\\
+\textsc{Pi} & two fixed-window predictors & \checkmark & $\times$ & 2.00 & $\times$\\
+\textsc{If-Dfm} & influence update when a label reverses & $\times$ & $\times$ & 2.90 & $\times$\\
 \bottomrule
 \end{tabular}

@@ -17,33 +17,46 @@ import tr_backbone as TB  # noqa: E402
 OUT = HERE / "appendix"
 OUT.mkdir(exist_ok=True)
 
-# paper name, registry key, target in math, rule-1 status, rule-2 status
+# paper name, registry key, target, Rule 1a, Rule 2, in the v3 production run?
 METHODS = [
-    ("Fresh", "Vanilla_fresh", r"$\tilde y=\Yo$", "yes", "yes"),
-    ("Reweight", "FSIW", r"$\tilde y=\Yo$, loss $\times\,w_{\text{iw}}(x)$", "yes", "yes"),
-    ("Wait", "DISTILL_T", r"$\tilde y=\Yv$ at $\Delta{=}v$", "yes", "yes"),
-    ("Twice", "TWICE", r"$\tilde y=\Yo$ + delay head", "yes", "yes"),
-    ("Correct", "ULC_aux5e4", r"$\tilde y=\Yo+(1-\Yo)\,w(x)$", "yes", "yes"),
-    ("Distil", "DISTILL_Tmlp", r"$\tilde y=\Yo+(1-\Yo)\,w^{T}(x)$", "1b", "yes"),
-    ("Soft", "DISTILL_pvmlp", r"$\tilde y=\hat p_v(x)$", "1b", "yes"),
-    ("Vanilla", "Vanilla", r"$\Yo$ plus a late positive", "no", "no"),
-    ("ES-DFM", "ES-DFM", r"duplicated delayed positive", "no", "no"),
-    ("DEFUSE", "DEFUSE", r"duplicated stream + correction", "no", "no"),
-    ("DDFM", "DDFM", r"both streams together", "no", "no"),
-    ("Oracle", "Oracle", r"$\tilde y=\Yv$ at $\Delta{=}o$", "no", "yes"),
+    ("Fresh", "Vanilla_fresh", r"$\tilde y=\Yo$", "yes", "yes", True),
+    ("Reweight", "FSIW", r"$\tilde y=\Yo$, loss $\times\,w_{\text{iw}}(x)$", "yes", "yes", True),
+    ("Wait", "DISTILL_T", r"$\tilde y=\Yv$ at $\Delta{=}v$", "yes", "yes", True),
+    ("Twice", "TWICE", r"$\tilde y=\Yo$ + delay head", "yes", "yes", True),
+    ("Correct", "ULC_aux5e4", r"$\tilde y=\Yo+(1-\Yo)\,w(x)$", "yes", "yes", True),
+    ("Correct-Distill", "DISTILL_Tmlp", r"$\tilde y=\Yo+(1-\Yo)\,w^{T}(x)$", "1b", "yes", True),
+    ("Distill-Only", "DISTILL_pvmlp", r"$\tilde y=\hat p_v(x)$", "1b", "yes", True),
+    ("Oracle", "Oracle", r"$\tilde y=\Yv$ at $\Delta{=}o$", "no", "yes", True),
+    ("Vanilla", "Vanilla", r"$\Yo$ plus a late positive", "yes", "no", False),
+    ("Es-Dfm", "ES-DFM", r"duplicated delayed positive", "yes", "no", False),
+    ("Defuse", "DEFUSE", r"duplicated stream + correction", "yes", "no", False),
+    ("Ddfm", "DDFM", r"both streams together", "yes", "no", False),
+    ("Miss", "MISS", r"delayed positive into every head", "yes", "no", False),
+    ("Ftp", "FTP", r"$K$ maturity-gated tasks + prophet", "yes", "no", False),
+    ("Pi", "PI", r"two fixed-window predictors", "yes", "no", False),
+    ("If-Dfm", "IF-DFM", r"influence update when a label reverses", "no", "no", False),
 ]
 MARK = {"yes": r"\checkmark", "no": r"$\times$", "1b": r"\checkmark\,\textsuperscript{1b}"}
 
 
 def compliance():
-    f = HERE / "data" / "compliance_audit.csv"
-    a = pd.read_csv(f).set_index("arm") if f.exists() else pd.DataFrame()
-    L = [r"\begin{tabular}{l l c c r}", r"\toprule",
-         r"method & target $\tilde y$ & Rule 1 & Rule 2 & rec./click\\", r"\midrule"]
-    for nm, key, math, r1, r2 in METHODS:
+    a = pd.DataFrame()
+    for fn in ("compliance_audit_7d.csv", "compliance_audit.csv"):
+        f = HERE / "data" / fn
+        if f.exists():
+            a = pd.read_csv(f).set_index("arm")
+            break
+    L = [r"\begin{tabular}{l l c@{\hskip 1.1em} c@{\hskip 1.1em} r@{\hskip 1.1em} c}", r"\toprule",
+         r"method & target $\tilde y$ & Rule 1a & Rule 2 & rec./click & in run\\", r"\midrule"]
+    last = True
+    for nm, key, math, r1, r2, run in METHODS:
+        if run != last:
+            L.append(r"\midrule")
+            last = run
         v = a.visits_per_click.get(key, float("nan")) if len(a) else float("nan")
         cell = "--" if v != v else f"{v:.2f}"
-        L.append(f"\\textsc{{{nm}}} & {math} & {MARK[r1]} & {MARK[r2]} & {cell}" + r"\\")
+        L.append(f"\\textsc{{{nm}}} & {math} & {MARK[r1]} & {MARK[r2]} & {cell} & "
+                 + (r"\checkmark" if run else r"$\times$") + r"\\")
     L += [r"\bottomrule", r"\end{tabular}"]
     (OUT / "tab_spec_compliance.tex").write_text("\n".join(L) + "\n")
     print("appendix/tab_spec_compliance.tex")
@@ -72,20 +85,29 @@ def labels():
     print("appendix/tab_spec_labels.tex")
 
 
+#: the "freshness of the CTR pipeline" axis, in minutes. 5 is the production upper-funnel case;
+#: 60 is TWICE's default and our previous single setting; 30 and 90 bracket it. Chosen after
+#: measuring F(o): 5 min more than halves the fresh label's coverage, while 50/60/90 differ by
+#: only +-0.04, so 30 replaces 50 to give a genuinely distinct second point.
+O_MINUTES = (5, 30, 60, 90)
+
+
 def matrix():
-    arms = len(METHODS)
+    arms = sum(1 for m in METHODS if m[5])
     L = [r"\begin{tabular}{l l r}", r"\toprule",
          r"axis & levels & count\\", r"\midrule",
-         rf"method & the {arms} arms of Table~\ref{{tab:spec-compliance}} & {arms}\\",
-         r"capacity & A0, A1, A2, A3, A4 & 5\\",
-         r"window & $v=1$\,d, $v=7$\,d & 2\\",
+         rf"method & the {arms} admissible arms of Table~\ref{{tab:spec-compliance}} & {arms}\\",
+         r"served capacity & A0, A1, A2, A3, A4 & 5\\",
+         r"attribution window $v$ & $1$\,d, $7$\,d & 2\\",
+         r"freshness of the CTR pipeline $o$ & "
+         + ", ".join(f"${m}$~min" for m in O_MINUTES) + rf" & {len(O_MINUTES)}\\",
          r"seed & $0\ldots4$ (init and shuffle only; data identical) & 5\\",
          r"\midrule",
-         rf"\multicolumn{{2}}{{l}}{{streaming runs}} & {arms*5*2*5:,}\\".replace(",", "{,}"),
-         r"\multicolumn{2}{l}{learning-rate selections (7 rates, per arm/rung/window)} & "
-         rf"{arms*5*2*7:,}\\".replace(",", "{,}"),
+         rf"\multicolumn{{2}}{{l}}{{streaming runs}} & {arms*5*2*len(O_MINUTES)*5:,}\\".replace(",", "{,}"),
+         r"\multicolumn{2}{l}{learning-rate selections (7 rates, per arm/rung/window/$o$)} & "
+         rf"{arms*5*2*len(O_MINUTES)*7:,}\\".replace(",", "{,}"),
          r"\multicolumn{2}{l}{NE curves recorded (seed 0)} & "
-         rf"{arms*5*2:,}\\".replace(",", "{,}"),
+         rf"{arms*5*2*len(O_MINUTES):,}\\".replace(",", "{,}"),
          r"\bottomrule", r"\end{tabular}"]
     (OUT / "tab_spec_matrix.tex").write_text("\n".join(L) + "\n")
     print("appendix/tab_spec_matrix.tex")

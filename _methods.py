@@ -25,6 +25,9 @@ import tr_backbone as TB  # noqa: E402
 OUT = HERE / "appendix"
 WINDOWS = ("1d", "7d")
 
+#: the duplicating and multi-window families are vetted in App. A.2 and excluded from the run,
+#: so they get no per-method section here.
+
 # key -> (paper name, target algebra, prose, pipeline it reads, auxiliary description)
 # `pipe` drives the diagram: "fresh", "mat", "both", "dup"
 M = {
@@ -36,70 +39,60 @@ M = {
    what the record's label says."""),
  "FSIW": dict(
    name="Reweight", tex=r"\tilde y_i = \Yo_i,\quad \ell_i \mapsto w_{\text{iw}}(x_i)\,\ell_i",
-   pipe="mat", aux=r"two importance-weight classifiers, \textsc{AuxHead}",
+   pipe="reweight", aux=r"two importance-weight classifiers, \textsc{AuxHead}",
    prose=r"""\textsc{Fsiw}~\cite{yasui2020feedback} leaves the target alone and corrects the
    feedback shift in the \emph{loss}, weighting each example by a ratio estimated from two
    classifiers fitted on matured data. The record and its label are untouched, so it sits at the
    hard end of the axis by a different route from \textsc{Fresh}."""),
  "DISTILL_T": dict(
-   name="Wait", tex=r"\tilde y_i = \Yv_i \ \text{ emitted at } \Delta=v", pipe="mat", aux=None,
+   name="Wait", tex=r"\tilde y_i = \Yv_i \ \text{ emitted at } \Delta=v", pipe="matonly",
+   aux=r"none as a separate model, but the trunk carries a second $w$ read-out it never serves",
    prose=r"""Emit nothing until the window closes, then write one record carrying the true label.
-   The label is correct and Rule~1 is satisfied at $\Delta=v$, but the freshest data the model has
-   ever seen is $v$ old. This is the admissible production status quo and the anchor for
-   $\mathrm{RI}^{\textsc{wait}}$."""),
+   \textsc{Wait} never touches $\mathcal{D}_{\text{fresh}}$ at all: it is the matured pipeline
+   alone. The label is correct and Rule~1a is satisfied at $\Delta=v$, but the freshest data the
+   model has ever seen is $v$ old. This is the admissible production status quo and the anchor for
+   $\mathrm{RI}^{\textsc{wait}}$. One implementation detail is worth recording because it is easy
+   to miss: the arm is instantiated with a two-headed trunk ($p_v$ and $w$) and serves $p_v$, so
+   its representation is shaped in part by a task it never uses."""),
  "TWICE": dict(
    name="Twice", tex=r"\tilde y_i = \Yo_i \ \text{ plus a separate delay head on the conversion clock}",
-   pipe="fresh", aux=r"delay head, ReLU MLP $[64,32]$, no shared parameters",
+   pipe="twoclock", aux=r"delay head, ReLU MLP $[64,32]$, no shared parameters",
    prose=r"""\textsc{Twice}~\cite{li2026twice} keeps its CVR tower on a single fresh record and
    routes conversion-clock arrivals to a separate delay head, so the served tower stays
    single-visit. The delay head reads the conversion clock, which is why its R2 status is
    boundary rather than clean."""),
  "ULC_aux5e4": dict(
    name="Correct", tex=r"\tilde y_i = \Yo_i + (1-\Yo_i)\,w(x_i)",
-   pipe="mat", aux=r"correction head $w$, \textsc{AuxHead}, $9{,}444{,}801$ parameters",
+   pipe="twowin", aux=r"correction head $w$, \textsc{AuxHead}, $9{,}444{,}801$ parameters",
    prose=r"""\textsc{Ulc}~\cite{wang2023unbiased} keeps the realised label and softens the observed
    negatives by the probability they convert later, $w(x)=P(\Yv{=}1\mid\Yo{=}0,x)$, estimated
    online on matured data. An observed positive stays exactly $1$; only negatives move. This is
-   the hybrid point of the axis and the comparator that matters for \textsc{Distil}."""),
+   the hybrid point of the axis and the comparator that matters for \textsc{Correct-Distill}.
+
+   \textsc{Correct} needs \emph{two} pipelines over the same clicks at \emph{different}
+   attribution horizons: the fresh pipeline at $\Delta=o$ supplies the record and its realised
+   label, and a second, maturity-gated pipeline at $\Delta=v$ supplies the data on which $w$ is
+   fitted. The same click is therefore read twice --- once as a served record, once as an
+   estimator row --- which is the concrete case that makes Rule~2 practical rather than hard
+   (Sect.~\ref{app:rules}). Because the split between the two depends on where $o$ falls, this
+   arm is the one most exposed to the freshness axis: at $o=5$~min the fresh label carries
+   $26.5\%$ of the target's positives at $v=7$\,d against $57.4\%$ at $o=60$~min, so almost all
+   of the signal must come through $w$."""),
  "DISTILL_Tmlp": dict(
-   name="Distil", tex=r"\tilde y_i = \Yo_i + (1-\Yo_i)\,w^{T}(x_i)",
-   pipe="mat", aux=r"offline teacher, two read-outs on one trunk, $9{,}456{,}897$ parameters",
+   name="Correct-Distill", tex=r"\tilde y_i = \Yo_i + (1-\Yo_i)\,w^{T}(x_i)",
+   pipe="teacher", aux=r"offline teacher, two read-outs on one trunk, $9{,}456{,}897$ parameters",
    prose=r"""Identical in form to \textsc{Correct}; the only difference is where $w$ comes from.
    Here it is the second read-out of a teacher trained offline on the matured pipeline and
    \emph{evaluated at the fresh release} under Rule~1b. The two correctors hold the same parameter
    count to within $0.13\%$, so a comparison between them isolates the estimator and nothing
    else."""),
  "DISTILL_pvmlp": dict(
-   name="Soft", tex=r"\tilde y_i = \hat p_v(x_i)",
-   pipe="mat", aux=r"same teacher; the $p_v$ read-out is consumed instead of $w$",
+   name="Distill-Only", tex=r"\tilde y_i = \hat p_v(x_i)",
+   pipe="distillonly", aux=r"same teacher; the $p_v$ read-out is consumed instead of $w$",
    prose=r"""The extreme soft end: the target is the teacher's estimate alone and the record
    carries \emph{no realised label at all}. By Proposition~\ref{prop:axis}(ii) Rule~1 is satisfied
    vacuously --- there is no hard label for a late conversion to revise. This is the arm that makes
    the served record label-free, and the one whose behaviour changes most across the ladder."""),
- "Vanilla": dict(
-   name="Vanilla", tex=r"\Yo_i \ \text{ plus a second, positive record when the conversion lands}",
-   pipe="dup", aux=None,
-   prose=r"""The field's reference baseline. Described as training each click once at age $o$, but
-   reproducing any published \textsc{Vanilla} row requires also emitting the late conversion as a
-   positive, which is a second visit. It is reported for continuity with the literature and is
-   \emph{inadmissible} here."""),
- "ES-DFM": dict(
-   name="ES-DFM", tex=r"\text{elapsed-time cut-off; the delayed positive is duplicated}",
-   pipe="dup", aux=r"delayed-positive rate, \textsc{AuxHead}",
-   prose=r"""\textsc{Es-Dfm}~\cite{yang2021capturing} samples an elapsed-time cut-off and duplicates
-   the delayed positive into the stream, then corrects with importance weights. Duplication is the
-   mechanism, not an implementation detail."""),
- "DEFUSE": dict(
-   name="DEFUSE", tex=r"\text{duplicated stream with a label correction on top}",
-   pipe="dup", aux=r"four-class mass estimator, \textsc{AuxHead}",
-   prose=r"""\textsc{Defuse}~\cite{chen2022asymptotically} separates immediate from delayed
-   positives and corrects the duplicated stream with an unbiased estimator."""),
- "DDFM": dict(
-   name="DDFM", tex=r"\text{fresh and delayed-positive streams trained together}",
-   pipe="dup", aux=r"dual heads, \textsc{AuxHead}",
-   prose=r"""\textsc{Ddfm}~\cite{dai2023dually} runs both streams simultaneously, which is why its
-   record count is the highest of the group at $1.89$ per click. It is the strongest inadmissible
-   method and therefore bounds what the rules cost."""),
  "Oracle": dict(
    name="Oracle", tex=r"\tilde y_i = \Yv_i \ \text{ emitted at } \Delta=o",
    pipe="fresh", aux=None,
@@ -139,18 +132,62 @@ def audit_map():
 
 
 def diagram(pipe):
-    """Compact data-flow sketch; greyscale, no colour."""
-    boxes = {
-      "fresh": r"\node[bx] (f) {$\mathcal{D}_{\text{fresh}}$}; \node[bx,right=14mm of f] (s) {served}; \draw[ar] (f)--(s);",
-      "mat":   r"\node[bx] (f) {$\mathcal{D}_{\text{fresh}}$}; \node[bx,below=6mm of f] (m) {$\mathcal{D}_{\text{mat}}$};"
-               r"\node[bx,right=20mm of f] (s) {served}; \node[bx,right=6mm of m] (a) {aux};"
-               r"\draw[ar] (f)--(s); \draw[ar] (m)--(a); \draw[ar] (a) -| (s);",
-      "dup":   r"\node[bx] (f) {$\mathcal{D}_{\text{fresh}}$}; \node[bx,below=6mm of f] (d) {late positives};"
-               r"\node[bx,right=20mm of f] (s) {served}; \draw[ar] (f)--(s); \draw[ar,dashed] (d) -| (s);",
+    """Compact data-flow sketch, one per pipeline topology. Greyscale, no colour.
+
+    The topologies are genuinely different and were previously collapsed into three, which put a
+    fresh stream on WAIT (it has none) and hid TWICE's second clock.
+    """
+    body = {
+      # fresh records only
+      "fresh": r"\node[bx] (f) {$\mathcal{D}_{\text{fresh}}$ ($\Delta{=}o$)};"
+               r"\node[bx,right=16mm of f] (s) {served}; \draw[ar] (f)--(s);",
+      # matured records only -- no fresh stream anywhere
+      "matonly": r"\node[bx] (m) {$\mathcal{D}_{\text{mat}}$ ($\Delta{=}v$)};"
+                 r"\node[bx,right=16mm of m] (s) {served}; \draw[ar] (m)--(s);",
+      # two pipelines at DIFFERENT horizons: fresh gives the label, matured fits w
+      "twowin": r"\node[bx] (f) {$\mathcal{D}_{\text{fresh}}$ ($\Delta{=}o$)};"
+                r"\node[bx,below=7mm of f] (m) {$\mathcal{D}_{\text{mat}}$ ($\Delta{=}v$)};"
+                r"\node[bx,right=26mm of f] (s) {served};"
+                r"\node[bx,right=8mm of m] (a) {$w(x)$};"
+                r"\draw[ar] (f)-- node[above,font=\tiny]{$\Yo$} (s);"
+                r"\draw[ar] (m)--(a); \draw[ar] (a) -| node[near start,below,font=\tiny]{$(1{-}\Yo)w$} (s);",
+      # TWICE: click clock feeds the CVR tower, conversion clock feeds a separate delay head
+      "twoclock": r"\node[bx] (f) {click clock: $\mathcal{D}_{\text{fresh}}$};"
+                  r"\node[bx,below=7mm of f] (c) {conversion clock: arrivals};"
+                  r"\node[bx,right=24mm of f] (s) {CVR tower (served)};"
+                  r"\node[bx,right=8mm of c] (d) {delay head};"
+                  r"\draw[ar] (f)-- node[above,font=\tiny]{$\Yo$} (s); \draw[ar] (c)--(d);"
+                  r"\node[font=\tiny,anchor=west] at ([xshift=2mm]d.east) {no CVR record; no shared parameters};",
+      # teacher trained on matured, SCORED at the fresh release (Rule 1b)
+      "teacher": r"\node[bx] (f) {$\mathcal{D}_{\text{fresh}}$ ($\Delta{=}o$)};"
+                 r"\node[bx,below=7mm of f] (m) {$\mathcal{D}_{\text{mat}}$ ($\Delta{=}v$)};"
+                 r"\node[bx,right=26mm of f] (s) {served};"
+                 r"\node[bx,right=8mm of m] (a) {teacher $w^{T}$};"
+                 r"\draw[ar] (f)-- node[above,font=\tiny]{$\Yo$} (s);"
+                 r"\draw[ar] (m)--(a); \draw[ar] (a) -| node[near start,below,font=\tiny]{Rule 1b} (s);",
+      # the served record carries NO realised label: features from fresh, target from the teacher
+      "distillonly": r"\node[bx] (f) {$\mathcal{D}_{\text{fresh}}$: features only};"
+                     r"\node[bx,below=7mm of f] (m) {$\mathcal{D}_{\text{mat}}$ ($\Delta{=}v$)};"
+                     r"\node[bx,right=26mm of f] (s) {served};"
+                     r"\node[bx,right=8mm of m] (a) {teacher $\hat p_v$};"
+                     r"\draw[ar,dashed] (f)-- node[above,font=\tiny]{$x$, no label} (s);"
+                     r"\draw[ar] (m)--(a); \draw[ar] (a) -| node[near start,below,font=\tiny]{target} (s);",
+      # fresh record and label untouched; the matured pipeline reweights the LOSS, not the target
+      "reweight": r"\node[bx] (f) {$\mathcal{D}_{\text{fresh}}$ ($\Delta{=}o$)};"
+                  r"\node[bx,below=7mm of f] (m) {$\mathcal{D}_{\text{mat}}$ ($\Delta{=}v$)};"
+                  r"\node[bx,right=26mm of f] (s) {served};"
+                  r"\node[bx,right=8mm of m] (a) {$w_{\text{iw}}(x)$};"
+                  r"\draw[ar] (f)-- node[above,font=\tiny]{$\Yo$ unchanged} (s);"
+                  r"\draw[ar] (m)--(a); \draw[ar] (a) -| node[near start,below,font=\tiny]{loss weight} (s);",
+      # duplicating arms, kept for documentation only
+      "dup": r"\node[bx] (f) {$\mathcal{D}_{\text{fresh}}$};"
+             r"\node[bx,below=7mm of f] (d) {late positives (2nd record)};"
+             r"\node[bx,right=26mm of f] (s) {served};"
+             r"\draw[ar] (f)--(s); \draw[ar,dashed] (d) -| (s);",
     }[pipe]
     return (r"\begin{center}\begin{tikzpicture}[font=\scriptsize,"
-            r"bx/.style={draw,line width=.4pt,rounded corners=1pt,inner sep=2.2pt,minimum height=4mm},"
-            r"ar/.style={draw,-{Latex[length=1.2mm]},line width=.4pt}]" + boxes +
+            r"bx/.style={draw,line width=.4pt,rounded corners=1pt,inner sep=2.4pt,minimum height=4.4mm},"
+            r"ar/.style={draw,-{Latex[length=1.2mm]},line width=.4pt}]" + body +
             r"\end{tikzpicture}\end{center}")
 
 
@@ -184,7 +221,7 @@ def emit():
              r"\paragraph{Training data.}"]
         t = [r"\begin{center}\small\begin{tabular}{lrr}", r"\toprule",
              r" & $v=1$\,d & $v=7$\,d\\", r"\midrule"]
-        if d["pipe"] == "mat" and key == "DISTILL_T":
+        if d["pipe"] == "matonly":          # consumes the matured pipeline ONLY
             t.append(r"records consumed & " +
                      " & ".join(f"{S[w]['mat_n']:,}".replace(",", "{,}") for w in WINDOWS) + r"\\")
             t.append(r"positives ($\Yv$) & " +
@@ -197,8 +234,8 @@ def emit():
             if key == "Oracle":
                 t.append(r"label positives ($\Yv$) & " +
                          " & ".join(f"{S[w]['fresh_pos_v']:,}".replace(",", "{,}") for w in WINDOWS) + r"\\")
-            if d["pipe"] == "mat":
-                t.append(r"matured records for the auxiliary & " +
+            if d["pipe"] in ("twowin", "teacher", "distillonly", "reweight"):
+                t.append(r"matured records for the estimator & " +
                          " & ".join(f"{S[w]['mat_n']:,}".replace(",", "{,}") for w in WINDOWS) + r"\\")
             if d["pipe"] == "dup":
                 t.append(r"extra records from duplication & " +
@@ -206,10 +243,11 @@ def emit():
                                     for w in WINDOWS) + r"\\")
         t += [r"\bottomrule", r"\end{tabular}\end{center}"]
         L += t
-        L += ["", r"\paragraph{Experiment setup.} Five rungs A0--A4 $\times$ two windows $\times$ "
-                  r"five seeds, learning rate selected per arm, per rung and per window from the "
-                  r"grid of Sect.~\ref{app:matrix}. NE against streaming hour is recorded at "
-                  r"seed~0.", "",
+        L += ["", r"\paragraph{Experiment setup.} Five rungs A0--A4 $\times$ two windows "
+                  r"($v=1$\,d, $7$\,d) $\times$ four pipeline-freshness settings "
+                  r"($o \in \{5, 30, 60, 90\}$~min) $\times$ five seeds. The learning rate is "
+                  r"selected per arm, per rung, per window and per $o$ from the grid of "
+                  r"Sect.~\ref{app:matrix}; NE against streaming hour is recorded at seed~0.", "",
               r"\paragraph{Results.} \emph{[pending the production run]}", ""]
         f = OUT / f"m_{key.replace('_','')}.tex"
         f.write_text("\n".join(L) + "\n")
