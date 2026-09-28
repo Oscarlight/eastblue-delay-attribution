@@ -1,0 +1,11 @@
+\begin{tabular}{l r@{\hskip 1.4em} l}
+\toprule
+variant & AUC & $\Delta$ vs default\\
+\midrule
+\textsc{Distil}, teacher 9.5\,M (default) & 0.8377 & --\\
+\quad teacher 57\,M & 0.8360 & $-0.0016$$^{\ast\ast}$\\
+\quad teacher 60\,M & 0.8361 & $-0.0016$$^{\ast\ast}$\\
+\quad teacher trains only $w$ & 0.8376 & $-0.0000$\\
+\quad teacher label unused (NoKD) & 0.8182 & $-0.0194$$^{\ast\ast}$\\
+\bottomrule
+\end{tabular}

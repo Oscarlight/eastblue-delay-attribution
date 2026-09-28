@@ -1,0 +1,18 @@
+arm,cvr_rows,visits_per_click,max_visits,R1,R2,reason
+Vanilla_fresh,4341691,1.0,1,OK,OK,"fresh record only, label Y^(o), never revisited"
+Vanilla,4694242,1.08,2,VIOL x1.08,VIOLATION,emits a second POSITIVE record when the conversion lands after o
+Oracle,4341691,1.0,1,OK,VIOLATION,labels the fresh record with Y^(v): a positive that had not arrived
+Pretrain,0,0.0,0,n/a frozen,OK,"fresh record only, label Y^(o), frozen at T_0"
+DFM,2555446,1.34,8,VIOL x1.34,VIOLATION,re-snapshots a rolling history window every cutoff; the label of a click changes as it ages
+FSIW,4341691,1.0,1,OK,VIOLATION,"CVR record is fresh-only, but the importance weights come from auxiliaries fitted on matured Y^(v)"
+ES-DFM,4694242,1.08,2,VIOL x1.08,VIOLATION,"duplicates the late conversion as a positive, and the FN auxiliary reads matured Y^(v)"
+ULC,4341691,1.0,1,OK,VIOLATION,"CVR record is fresh-only, but the soft label w is fitted on matured Y^(v)"
+DEFUSE,4694242,1.08,2,VIOL x1.08,VIOLATION,ES-DFM's duplication plus ULC's matured-label correction
+DDFM,8217290,1.89,2,VIOL x1.89,VIOLATION,fresh + delayed-positive duplicate + real-negative replay at window close
+IF-DFM,12572725,2.9,99,VIOL x2.90,VIOLATION,its entire mechanism is an update applied when a label REVERSES
+FTP,13025073,3.0,3,VIOL x3.00,VIOLATION,"K maturity-gated tasks: the same click is relabelled at every horizon d_k, plus the prophet"
+MISS,8895246,2.05,3,VIOL x2.05,VIOLATION,their Eq. (7) duplicates each delayed positive into EVERY head's stream
+PI,8683382,2.0,2,VIOL x2.00,VIOLATION,two maturity-gated heads relabel the same click at two horizons
+TWICE,4341691,1.0,1,OK,OK*,CVR head sees the fresh record once with Y^(o); arrivals train ONLY the delay head and create no CVR record
+DISTILL_T,4341691,1.0,1,OK,OK,"one record per click, emitted at maturity with label Y^(v) -- compliant if Delta = v"
+DISTILL_T_hyb,9035933,2.08,3,VIOL x2.08,VIOLATION,"deliberately visits each click twice: fresh at o, again at maturity"

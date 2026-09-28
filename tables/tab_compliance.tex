@@ -1,0 +1,23 @@
+\begin{tabular}{l r@{\hskip 1.1em} r@{\hskip 1.4em} c@{\hskip 1.0em} c}
+\toprule
+method & records/click & max & R1 & R2\\
+\midrule
+\multicolumn{5}{l}{\emph{admissible}}\\
+\quad Fresh & 1.00 & 1 & \checkmark & \checkmark\\
+\quad Wait / teacher & 1.00 & 1 & \checkmark & \checkmark\\
+\quad Reweight & 1.00 & 1 & \checkmark & $\times$\\
+\quad Correct & 1.00 & 1 & \checkmark & $\times$\\
+\quad Twice & 1.00 & 1 & \checkmark & \checkmark$^{\dag}$\\
+\midrule
+\multicolumn{5}{l}{\emph{inadmissible}}\\
+\quad Vanilla & 1.08 & 2 & $\times$ & $\times$\\
+\quad DFM & 1.34 & 8 & $\times$ & $\times$\\
+\quad ES-DFM & 1.08 & 2 & $\times$ & $\times$\\
+\quad DEFUSE & 1.08 & 2 & $\times$ & $\times$\\
+\quad DDFM & 1.89 & 2 & $\times$ & $\times$\\
+\quad PI & 2.00 & 2 & $\times$ & $\times$\\
+\quad MISS & 2.05 & 3 & $\times$ & $\times$\\
+\quad IF-DFM & 2.90 & 99 & $\times$ & $\times$\\
+\quad FTP & 3.00 & 3 & $\times$ & $\times$\\
+\bottomrule
+\end{tabular}
