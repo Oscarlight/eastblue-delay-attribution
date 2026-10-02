@@ -20,14 +20,17 @@ OUT.mkdir(exist_ok=True)
 # paper name, registry key, target, Rule 1a, Rule 2, in the v3 production run?
 METHODS = [
     ("Fresh", "Vanilla_fresh", r"$\tilde y=\Yo$", "yes", "yes", True),
-    ("Reweight", "FSIW", r"$\tilde y=\Yo$, loss $\times\,w_{\text{iw}}(x)$", "yes", "yes", True),
+    ("Reweight", "FSIW", r"$\tilde y=\Yo$, loss $\times\,w_{\text{iw}}(x)$ \ (\textsc{Fsiw})",
+     "yes", "yes", True),
     ("Wait", "DISTILL_T", r"$\tilde y=\Yv$ at $\Delta{=}v$", "yes", "yes", True),
     ("Twice", "TWICE", r"$\tilde y=\Yo$ + delay head", "yes", "yes", True),
-    ("Correct", "ULC_aux5e4", r"$\tilde y=\Yo+(1-\Yo)\,w(x)$", "yes", "yes", True),
+    ("Correct", "ULC_aux5e4", r"$\tilde y=\Yo+(1-\Yo)\,w(x)$ \ (\textsc{Ulc})",
+     "yes", "yes", True),
     ("Correct-Distill", "DISTILL_Tmlp", r"$\tilde y=\Yo+(1-\Yo)\,w^{T}(x)$", "1b", "yes", True),
     ("Distill-Only", "DISTILL_pvmlp", r"$\tilde y=\hat p_v(x)$", "1b", "yes", True),
     ("Oracle", "Oracle", r"$\tilde y=\Yv$ at $\Delta{=}o$", "no", "yes", True),
     ("Vanilla", "Vanilla", r"$\Yo$ plus a late positive", "yes", "no", False),
+    ("Dfm", "DFM", r"batch snapshot at elapsed $e_i$; hazard $\lambda(x)$", "yes", "no", False),
     ("Es-Dfm", "ES-DFM", r"duplicated delayed positive", "yes", "no", False),
     ("Defuse", "DEFUSE", r"duplicated stream + correction", "yes", "no", False),
     ("Ddfm", "DDFM", r"both streams together", "yes", "no", False),
@@ -85,11 +88,12 @@ def labels():
     print("appendix/tab_spec_labels.tex")
 
 
-#: the "freshness of the CTR pipeline" axis, in minutes. 5 is the production upper-funnel case;
-#: 60 is TWICE's default and our previous single setting; 30 and 90 bracket it. Chosen after
-#: measuring F(o): 5 min more than halves the fresh label's coverage, while 50/60/90 differ by
-#: only +-0.04, so 30 replaces 50 to give a genuinely distinct second point.
-O_MINUTES = (5, 30, 60, 90)
+#: the "freshness of the CTR pipeline" axis, in minutes. 5 min is the production upper-funnel
+#: case; 30 and 90 bracket the hour that TWICE uses. Chosen after measuring F(o): at v=7d the
+#: fresh label covers 26.5% / 51.3% / 59.9% of the target's positives at 5 / 30 / 90 min, which
+#: are three genuinely distinct regimes. 60 min is dropped because it sits 0.026 from 30 and
+#: 0.026 from 90 and would add a fourth point carrying no additional contrast.
+O_MINUTES = (5, 30, 90)
 
 
 def matrix():
@@ -144,7 +148,7 @@ def _timeline_unused():
   % evaluation
   \draw[line width=.5pt, dotted] (1.1,-1.15) -- (2.2,-1.15);
   \node[anchor=west, align=left] at (2.3,-1.15)
-    {scored once in the next hour $(T_n,T_{n+1}]$, retrospectively against $\Yv$};
+    {scored once in the next step $(T_n,T_{n+1}]$, retrospectively against $\Yv$};
 \end{tikzpicture}
 \caption{Timing for a single click. Features are known at $C_i$. The fresh pipeline writes one
 record at $C_i{+}o$ carrying $\Yo$; the matured pipeline writes one at $C_i{+}v$ carrying $\Yv$.

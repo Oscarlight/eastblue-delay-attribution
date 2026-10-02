@@ -1,0 +1,5 @@
+arm,train_rows,visits_per_click,max_visits,r1,r2,why
+FTP,17366764,4.0,4,VIOL x4.00,VIOLATION,"K maturity-gated tasks: the same click is relabelled at every horizon d_k, plus the prophet"
+DDFM,8217290,1.8926473579073222,2,VIOL x1.89,VIOLATION,fresh + delayed-positive duplicate + real-negative replay at window close
+DISTILL_Tmlp,4341691,1.0,1,OK,VIOLATION,"CVR record is fresh-only, but w_T is fitted on matured Y^(v) (teacher)"
+Vanilla,4482378,1.0324037339368464,2,VIOL x1.03,VIOLATION,emits a second POSITIVE record when the conversion lands after o

@@ -70,7 +70,7 @@ never revisited. Measured $1.00$ records per click.
 \paragraph{\textsc{Wait} --- satisfies 1a.} One record at $\Delta=v$ with $y=\ind[D_i\le v]$,
 emitted only once the window has closed. Knowable by construction. Measured $1.00$.
 
-\paragraph{\textsc{Reweight} (\textsc{Fsiw}) --- satisfies 1a.} The served record is
+\paragraph{\textsc{Reweight} (\textsc{Fsiw}~\cite{yasui2020feedback}) --- satisfies 1a.} The served record is
 \textsc{Fresh}'s, untouched. The importance weights come from two classifiers fitted on matured
 rows, each of which satisfies~\eqref{eq:rule1a} at $\Delta=v$. No record carries an unknowable
 label. Measured $1.00$ served records per click.
@@ -79,7 +79,7 @@ label. Measured $1.00$ served records per click.
 Conversion-clock arrivals train a \emph{separate} delay head and create no CVR record; each arrival
 is an event observed at the time it is consumed. Measured $1.00$ served records per click.
 
-\paragraph{\textsc{Correct} (\textsc{Ulc}) --- satisfies 1a.} Fresh record with $\Yo$, plus $w(x)$
+\paragraph{\textsc{Correct} (\textsc{Ulc}~\cite{wang2023unbiased}) --- satisfies 1a.} Fresh record with $\Yo$, plus $w(x)$
 fitted on matured rows. Both label sets are knowable at their own emission times. Measured $1.00$
 served records per click, with a second, non-served read of the same click for the estimator.
 
@@ -100,6 +100,20 @@ label reverses, which revises supervision already given for an emitted record. T
 therefore not frozen, and the revision is driven by information that arrived after emission. The
 instrument measures $2.90$ visits per click and up to $99$ for a single click.
 
+\paragraph{\textsc{Dfm}~\cite{chapelle2014modeling} --- satisfies 1a, violates Rule 2.}
+\textsc{Dfm} is not a stream method at all: it is a batch estimator. At each cutoff $T_n$ it draws
+rows from the accumulated history, each carrying its \emph{current} elapsed time
+$e_i = \mathrm{clip}(T_n - C_i,\, 0,\, v)$ and the label $\ind[D_i \le e_i]$, and fits a joint
+conversion-times-delay likelihood with a separate hazard head $\lambda(x)$. Every such row's label
+is knowable at $T_n$ --- it asks only whether the conversion has arrived \emph{by now} --- so
+Rule~1a holds for each row individually. But a click re-enters the snapshot at successive cutoffs
+with a longer elapsed time each time, and the instrument measures $1.34$ records per click with a
+maximum of $\mathbf{8}$ for a single click: the highest per-click multiplicity of any method here
+apart from \textsc{If-Dfm}. That re-entry is intrinsic, because the variation in $e_i$ across
+appearances is exactly what identifies $\lambda$; a single-visit reading of \textsc{Dfm} would
+leave every row at $e_i = o$ and the delay parameter unidentified. Rule~2 therefore fails
+structurally, not incidentally.
+
 \paragraph{The duplicating family --- satisfies 1a, violates Rule 2.} This is the case where our
 earlier draft was wrong, and it is worth stating precisely. \textsc{Vanilla}, \textsc{Es-Dfm} and
 \textsc{Defuse} ($1.08$ records per click) and \textsc{Ddfm} ($1.89$) write a second record when
@@ -117,6 +131,14 @@ production run is a \emph{scope} decision --- this paper studies what a single-s
 pipeline can do --- and not a claim that those methods use unknowable information. Where a system
 does support duplication, they remain available, and our audit is then a cost accounting rather
 than a prohibition.
+
+\paragraph{Coverage.} The twelve methods surveyed by~\cite{li2026twice} are all vetted above:
+the protocol arms \textsc{Vanilla} and \textsc{Oracle}; the click-indexed family \textsc{Dfm},
+\textsc{Fsiw} (our \textsc{Reweight}), \textsc{Es-Dfm} and \textsc{Ulc} (our \textsc{Correct});
+the late-feedback family \textsc{Defuse}, \textsc{Ddfm} and \textsc{If-Dfm}; and the window-aware
+family \textsc{Ftp}, \textsc{Miss} and \textsc{Pi}. \textsc{Twice} itself and the two distillation
+arms are vetted alongside them. Exactly two fail Rule~1a --- \textsc{Oracle} and \textsc{If-Dfm};
+the rest satisfy it and are separated by Rule~2.
 
 \paragraph{What the production run includes.} The seven arms that satisfy both hard rules
 (\textsc{Fresh}, \textsc{Reweight}, \textsc{Wait}, \textsc{Twice}, \textsc{Correct},

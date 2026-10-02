@@ -207,7 +207,7 @@ def emit():
              # explicit "unmeasured", not a violation.
              r"\paragraph{Compliance.} " +
              (f"Measured at ${vpc:.2f}$ training records per click "
-              f"(maximum {int(A.max_visits.get(key, 0))}) over the 720-hour replay. " +
+              f"(maximum {int(A.max_visits.get(key, 0))}) over the 30-day replay. " +
               ("Single-visit; admissible under Rule~2."
                if vpc <= 1.01 else "Exceeds one record per click; inadmissible under Rule~2.")
               if vpc == vpc else
@@ -244,10 +244,10 @@ def emit():
         t += [r"\bottomrule", r"\end{tabular}\end{center}"]
         L += t
         L += ["", r"\paragraph{Experiment setup.} Five rungs A0--A4 $\times$ two windows "
-                  r"($v=1$\,d, $7$\,d) $\times$ four pipeline-freshness settings "
-                  r"($o \in \{5, 30, 60, 90\}$~min) $\times$ five seeds. The learning rate is "
+                  r"($v=1$\,d, $7$\,d) $\times$ three pipeline-freshness settings "
+                  r"($o \in \{5, 30, 90\}$~min) $\times$ five seeds. The learning rate is "
                   r"selected per arm, per rung, per window and per $o$ from the grid of "
-                  r"Sect.~\ref{app:matrix}; NE against streaming hour is recorded at seed~0.", "",
+                  r"Sect.~\ref{app:matrix}; NE against streaming step is recorded at seed~0.", "",
               r"\paragraph{Results.} \emph{[pending the production run]}", ""]
         f = OUT / f"m_{key.replace('_','')}.tex"
         f.write_text("\n".join(L) + "\n")

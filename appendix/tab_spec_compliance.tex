@@ -3,15 +3,16 @@
 method & target $\tilde y$ & Rule 1a & Rule 2 & rec./click & in run\\
 \midrule
 \textsc{Fresh} & $\tilde y=\Yo$ & \checkmark & \checkmark & 1.00 & \checkmark\\
-\textsc{Reweight} & $\tilde y=\Yo$, loss $\times\,w_{\text{iw}}(x)$ & \checkmark & \checkmark & 1.00 & \checkmark\\
+\textsc{Reweight} & $\tilde y=\Yo$, loss $\times\,w_{\text{iw}}(x)$ \ (\textsc{Fsiw}) & \checkmark & \checkmark & 1.00 & \checkmark\\
 \textsc{Wait} & $\tilde y=\Yv$ at $\Delta{=}v$ & \checkmark & \checkmark & 1.00 & \checkmark\\
 \textsc{Twice} & $\tilde y=\Yo$ + delay head & \checkmark & \checkmark & 1.00 & \checkmark\\
-\textsc{Correct} & $\tilde y=\Yo+(1-\Yo)\,w(x)$ & \checkmark & \checkmark & 1.00 & \checkmark\\
+\textsc{Correct} & $\tilde y=\Yo+(1-\Yo)\,w(x)$ \ (\textsc{Ulc}) & \checkmark & \checkmark & 1.00 & \checkmark\\
 \textsc{Correct-Distill} & $\tilde y=\Yo+(1-\Yo)\,w^{T}(x)$ & \checkmark\,\textsuperscript{1b} & \checkmark & 1.00 & \checkmark\\
 \textsc{Distill-Only} & $\tilde y=\hat p_v(x)$ & \checkmark\,\textsuperscript{1b} & \checkmark & 1.00 & \checkmark\\
 \textsc{Oracle} & $\tilde y=\Yv$ at $\Delta{=}o$ & $\times$ & \checkmark & 1.00 & \checkmark\\
 \midrule
 \textsc{Vanilla} & $\Yo$ plus a late positive & \checkmark & $\times$ & 1.08 & $\times$\\
+\textsc{Dfm} & batch snapshot at elapsed $e_i$; hazard $\lambda(x)$ & \checkmark & $\times$ & 1.34 & $\times$\\
 \textsc{Es-Dfm} & duplicated delayed positive & \checkmark & $\times$ & 1.08 & $\times$\\
 \textsc{Defuse} & duplicated stream + correction & \checkmark & $\times$ & 1.08 & $\times$\\
 \textsc{Ddfm} & both streams together & \checkmark & $\times$ & 1.89 & $\times$\\
