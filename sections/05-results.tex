@@ -1,0 +1,69 @@
+\section{Results}
+\label{sec:results}
+
+Throughout, the reported quantity is the relative $\NE$ reduction against \textsc{Wait} --- the
+segregated status quo that joins on the attribution window --- so positive means the short join
+is better.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figs/gain}
+\caption{$\NE$ gain over \textsc{Wait} against served capacity, one panel per join delay; above
+the line beats the segregated status quo. Colour is the target, dash the attribution window, and
+\textsc{Oracle} is drawn at $v=7$\,d to bound the panel. Bars are the standard deviation of the
+per-seed differences.}
+\label{fig:gain}
+\end{figure}
+
+\paragraph{The join window can be collapsed.}
+Writing the record \ratioSeven{} times sooner than the seven-day window it answers to, and
+letting the teacher stand in for the conversions not yet seen, lowers $\NE$ in all \nCells{}
+seven-day cells (\cdSevenSig{} significant under Holm--Bonferroni) by \cdSevenMinAbs{} to
+\cdSevenMaxAbs{}\%, mean \cdSevenMeanAbs{}\%. At one day the same substitution gains \cdOneMeanAbs{}\% on
+average, positive in \cdOnePos{} of \nCells{} cells and significant in \cdOneSig{}. The two
+windows differ by a factor of three, and the direction is the useful part: \emph{the slower the
+funnel, the more collapsing its join window is worth}. That inverts the intuition --- a longer
+window censors more of the label, so the teacher has more to supply --- because what dominates
+is the cost of the alternative, and no label accuracy compensates for training on week-old data.
+
+Both ends of the interval are measured. \textsc{Oracle}, writing at $o$ but labelling the record
+$\Yv$, gains \oracleSevenAbs{}\% and \oracleOneAbs{}\%, so \textsc{Correct-Distill} recovers
+\recoverSeven{}\% and \recoverOne{}\% of what any causal correction could; \textsc{Fresh}, the
+same join uncorrected, loses \freshSevenAbs{}\% and \freshOneAbs{}\%. The gap the teacher fills is an
+order of magnitude larger than the gains above.
+
+\paragraph{The condition: keep part of the hard label.}
+The collapse above used the hybrid target; the fully soft one decides how far the result can be
+pushed. At $v=1$\,d, \textsc{Distill-Only} beats \textsc{Wait} at the two smallest capacities
+by \doOneSmallAbs{}\% and \emph{loses} at the three largest by \doOneLargeAbs{}\%, crossing over between
+A1 and A2 at every join delay (Fig.~\ref{fig:gain}). A purely soft target plausibly acts as a
+regulariser, a variance reduction a small model can use and a larger one no longer
+needs~\cite{menon2021statistical}. This cuts against convenience: a record with no hard label is
+the most portable object a consolidated pipeline could ask for, and it is exactly the one that
+fails at the capacities worth serving. At $v=7$\,d the crossover is weaker and non-monotone
+(\doSevenLargeAbs{}\% across the three largest rungs), so we state the rule for the one-day window
+and do not extrapolate it. \textsc{Correct-Distill} beats \textsc{Distill-Only} in all
+\cdBeatDo{} cells, though not \textsc{Wait}: it is below \textsc{Wait} in \cdNegN{} of \nCellsBoth{} cells, both at $v=1$\,d and $o=5$ minutes, at rungs \cdNegWhere{}, the worse
+by \cdNegWorstAbs{}\%, and neither survives Holm--Bonferroni. The location is coherent: the fastest
+join at the fast window is where the teacher has least to add, \foOneFive{} of the positives
+being already visible.
+
+\paragraph{The teacher need not be large, costly or live.}
+Substituting a \teacherSmallParams{}-parameter teacher for the \teacherParams{}-parameter one, a
+\teacherRatio{}$\times$ parameter and \teacherFlopRatio{}$\times$ compute step, moves the gain by
+\teachCdMean{}\,pp for \textsc{Correct-Distill} and \teachDoMean{}\,pp for
+\textsc{Distill-Only} over \nCellsBoth{} cells. Holding parameters fixed and spending
+\wideFlopRatio{}$\times$ more teacher compute is equally inert (\wideSevenAbs{}\% against
+\baseSevenThirtyAbs{}\% at seven days). The teacher's rate is verified, not inherited: the default
+beats a 10$\times$ smaller one everywhere (\lrLowSevenAbs{}\%) and ties a 2$\times$ larger one
+(\lrHighSevenAbs{}\%), so the null is a saturated teacher rather than an untuned one. Freezing it
+after causal initialisation costs \frzCostOneAbs{} and \frzCostSevenAbs{}\,pp, and the frozen arm
+still beats \textsc{Wait} in \frzBeat{} of \frzN{} cells: a shipped model suffices.
+
+\textsc{Correct-Distill} and \textsc{Ulc}~\cite{wang2023unbiased} share
+Eq.~\eqref{eq:hybrid} and differ only in how the corrector is estimated; on the matched grid they
+are near-indistinguishable (mean $\NE$ difference \cdUlcMean{}, \cdUlcNs{} of \cdUlcN{} cells not
+significant at $v=1$\,d). The offline teacher does not beat the online corrector on accuracy; the
+case for it is architectural (Sect.~\ref{sec:consolidation}). Relaxing Rule~2, by letting the teacher read the
+fresh stream at 2.08 visits per click, gains \hybOneAbs{}\% at one day against \baseOneThirtyAbs{}\%
+and nothing at seven, so single-visit is near-free on the slow funnel.

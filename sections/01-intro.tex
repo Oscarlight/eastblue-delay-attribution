@@ -1,0 +1,37 @@
+\section{Introduction}
+\label{sec:intro}
+
+Conversion pipelines are split by speed. An upper-funnel onsite conversion --- a view, an
+add-to-cart --- is observable within minutes of the click; a down-funnel offsite one, a purchase
+or an app install, arrives after a day or more. Each objective waits out its own
+\emph{attribution window} before its training record exists, and conventionally that window is
+also its \emph{join delay}: the age at which the record is written. Equating the two forces
+every objective onto its own pipeline and makes each stale by exactly the width of the window it
+waited for.
+
+A slow objective therefore trains on week-old data, and consolidating several objectives into
+one model inherits the worst of every window (Sect.~\ref{sec:consolidation}). We ask whether the
+two delays can be separated: can an objective accountable to a seven-day window be trained from
+records joined within 90 minutes?
+
+Joining sooner is not free. A record written at age $o$ records every conversion still in flight
+as a negative, and the deficit is large --- at $o=5$ minutes only \foOneFive{} of a one-day
+window's positives have arrived, and \foSevenFive{} of a seven-day window's. A substantial
+literature corrects this
+bias~\cite{chapelle2014modeling,yasui2020feedback,yang2021capturing,chen2022asymptotically,ding2026delayed},
+but most corrections repair the record after the fact --- duplicating the event when its outcome
+lands, relabelling it, adding heads at further horizons --- and a pipeline that trains each click
+at most once can do none of these. We make that restriction explicit as a \emph{single-visit}
+constraint and measure who obeys it: of \nScreened{} published methods reproduced under one
+protocol, \nFail{} write more than one record per distinct click, up to \maxDup{}
+(Sect.~\ref{sec:setting}).
+
+What is left is a choice of target. If the record must be written at $o$ and carry one frozen
+number, the gap between what is observed and what the objective means has to be closed at write
+time by an estimate. In production that estimate is naturally supplied by a large model trained
+across objectives on matured outcomes --- a foundation model such as GEM~\cite{meta2025gem} ---
+attractive precisely because it already exists and is not refitted per objective. Here we stand
+in for it with a \teacherParams{}-parameter training-only teacher, and compare three targets
+across five served capacities, three join delays and two attribution windows. The correction
+works, the gain grows as the funnel slows, it needs no larger teacher --- and it is conditional
+on the record keeping part of its hard label.

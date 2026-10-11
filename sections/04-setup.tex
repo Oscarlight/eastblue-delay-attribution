@@ -1,0 +1,29 @@
+\section{Experimental Setup}
+\label{sec:setup}
+
+\paragraph{Data and protocol.} The public Criteo conversion logs released
+with~\cite{chapelle2014modeling}. Clicks span 60 days; days $[0,30)$ initialise the model
+causally and days $[30,60)$ are the streaming period, divided into \nCohorts{} hourly rounds
+giving \nEval{} scored clicks at a base conversion rate of \baseRate{}. Learning rates are
+selected per arm and per cell from a seven-point grid on a held-out slice of the initialisation
+period, before any streaming evaluation, and pinned across seeds. The teacher's rate is fixed
+and decoupled from the student's, so the student's sweep tunes one model rather than two.
+
+\paragraph{Axes.} Two \emph{attribution windows}, $v=1$\,d and $7$\,d, standing for a fast and a
+slow funnel; the contrast between them is the paper's point, so we never average across them.
+Three \emph{join delays}, $o\in\{5,30,90\}$ minutes. Five \emph{served capacities} from
+\capMin{} to \capMax{} parameters and \flopMin{}--\flopMax{} MFLOPs per inference --- the two do
+not track, the smallest rungs differing 5.2$\times$ in parameters at identical compute, so we
+report both. \seedsCore{} seeds on the three targets and \seedsOther{} elsewhere: \nRunsFour{}
+runs over \nArmsFour{} arms, alongside the \nRunsThree{}-run screen of Sect.~\ref{sec:setting}.
+
+\paragraph{Metric and statistics.} Normalised entropy against $\Yv$, lower better, pooled over
+all scored clicks rather than averaged over rounds --- a per-round average normalises each hour
+by its own base rate and discards diurnal variation a model can legitimately predict. We report
+the relative reduction against \textsc{Wait} within a cell, computed per seed and then averaged.
+Seeds differ only in initialisation and minibatch order, so seed $i$ of two arms is a matched
+pair: paired $t$-test within each cell, Holm--Bonferroni across the \nCells{} cells of a
+contrast, counting only cells whose \emph{gain} is positive and survives. Dispersion is small
+away from \textsc{Fresh} (median $\NE$ sd \seedSdMed{}, maximum \seedSdMax{}); \textsc{Fresh}
+reaches \seedSdFresh{} at $o=5$ minutes, which is a result rather than a nuisance. Seeds measure
+initialisation variance on one data origin: precision, not generalisation.

@@ -1,0 +1,41 @@
+\section{What Fills the Gap}
+\label{sec:targets}
+
+Shortening $o$ leaves a gap: conversions arriving between $o$ and $v$ are recorded as negatives,
+and something must stand in for them in the record's single frozen target. We study four answers,
+identical in pipeline, schedule, features and optimiser, differing only in the target
+$\tilde y_i$ and the age $\Delta$ at which the record is written.
+
+\textsc{Fresh} ($\tilde y_i=\Yo_i$ at $\Delta=o$) fills the gap with nothing. \textsc{Wait}
+($\tilde y_i=\Yv_i$ at $\Delta=v$) avoids having one by deferring the write: correct label,
+$v$-old data. It is the segregated status quo and our baseline throughout --- a practitioner who
+refuses both to duplicate records and to train on wrong labels is already running it.
+\textsc{Correct-Distill} writes at $\Delta=o$ and softens only the observed negatives,
+\begin{equation}
+  \tilde y_i \;=\; \Yo_i + (1-\Yo_i)\,\wt(x_i),
+  \qquad
+  \wt(x) \approx P\!\left(\Yv{=}1 \,\middle|\, \Yo{=}0,\, x\right),
+  \label{eq:hybrid}
+\end{equation}
+so an observed positive stays exactly $1$ and only the uncertain mass moves. This is the
+functional form of \textsc{Ulc}~\cite{wang2023unbiased}; what differs is the estimator, so a
+comparison between them isolates that and nothing else. \textsc{Distill-Only} goes further and
+regresses on $\pv(x)\approx P(\Yv{=}1\mid x)$ alone: the record carries features and a number,
+and no observation at all.
+
+\paragraph{The teacher.} A separate model trained on the \emph{matured} stream --- a record
+enters it at $C_i+v$ carrying $\Yv_i$ --- with $\pv$ and $\wt$ as read-outs on one trunk. It is
+\emph{evaluated} at the write instant: at $C_i+o$ the student queries it and freezes the number
+into the record, so Rule~1 holds even though the target is soft: softness is
+another way of satisfying causality, not an exemption from it. The construction is distillation
+from
+privileged information~\cite{xu2020privileged}: the teacher sees the matured label, exactly what
+the student cannot.
+
+Teacher capacity is \teacherParams{} parameters (\teacherFlops{} MFLOPs). Being training-only
+it costs nothing at serving time, but it does mean \emph{served} capacity is matched across arms
+while total training capacity is not --- which is why teacher size is an experimental axis rather
+than a fixed detail. Nor need the teacher be live: ours keeps learning from the matured stream,
+making it a service, whereas frozen after causal initialisation it is a build-time artifact. We
+run both. \textsc{Oracle}, writing at $\Delta=o$ but labelling the record $\Yv_i$, violates
+Rule~1 and bounds what any correction could recover.

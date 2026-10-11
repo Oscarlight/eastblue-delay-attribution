@@ -1,0 +1,42 @@
+\section{Setting and the Single-Visit Constraint}
+\label{sec:setting}
+
+A click $i$ occurs at $C_i$ with features $x_i$ and, if it converts, after a delay $D_i>0$
+($D_i=\infty$ otherwise). The \emph{attribution window} $v$ belongs to the objective and fixes
+the target $\Yv_i=\mathbf{1}[D_i\le v]$, knowable only at $C_i+v$; the \emph{join delay} $o$
+belongs to the pipeline and decides when the record is written, carrying
+\begin{equation}
+  \Yo_i \;=\; \mathbf{1}\!\left[D_i \le o\right] \;\le\; \Yv_i .
+  \label{eq:labels}
+\end{equation}
+Setting $o=v$ is the segregated status quo; $o\ll v$ is what we want, and the inequality is its
+price. Write $F(o)=P(D\le o\mid D\le v)$ for the share of the target's positives visible at write
+time. Training runs in hourly rounds --- consume the records released since the last cut-off,
+then score every click of the next hour once, retrospectively against $\Yv$ --- so every arm is
+judged on the business label whatever it trained on, and update-then-predict keeps the evaluation
+causal.
+
+Two rules govern what a deployable system may do. \textbf{Rule~1 (causality):} a record's label
+must be computable when the record is written and must not change afterwards. Labelling a record
+$\Yv$ while writing it at $C_i+o$ uses an outcome that has not happened --- an upper reference
+(\textsc{Oracle}), not a system. \textbf{Rule~2 (single-visit):} with $n_i$ the number of times
+click $i$ enters the served model's loss over its lifetime, $\max_i n_i\le 1$. Without it
+shortening $o$ is trivial --- write early, write again later. The criterion is the maximum rather
+than the mean, since it is the \emph{existence} of a second write that obliges the pipeline to
+support one, and it governs the \emph{served} stream: charging training-only auxiliaries too
+would eliminate \textsc{Fsiw}, \textsc{Ulc} and our own arms alike.
+
+Reproducing \nScreened{} published methods from scratch under one protocol and counting the
+records each one's served model consumes per distinct click, \nFail{} write more than
+one.\footnote{The denominator must be \emph{distinct clicks touched}: dividing records consumed
+by records released conflates duplication with traffic variation. We also score only clicks whose
+whole revisit horizon lies inside the stream, since a shorter window cannot see the revisit.}
+Records per
+click, at $v=1$\,d: \input{generated/screen_inline}\ --- and \maxVisitsArm{} reaches
+\maxVisits{} writes for a single click, its mechanism being an update applied whenever a label
+reverses. The plain re-ingestion baseline~\cite{ktena2019addressing,gu2021real} measures
+\vanillaDup{} and fails the same criterion. Duplication is a property of emission logic, not of
+the model: the audit gives identical counts at the smallest and largest capacities. Only
+\passList{} are single-visit; of these \textsc{Fsiw} corrects the \emph{loss} and
+\textsc{Twice} adds a head on the conversion clock, both leaving the target untouched, while
+\textsc{Ulc} alone changes the target, which makes it our closest comparator.

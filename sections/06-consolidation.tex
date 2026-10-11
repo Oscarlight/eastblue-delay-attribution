@@ -1,0 +1,32 @@
+\section{What This Means for Consolidation}
+\label{sec:consolidation}
+
+Consolidating ranking objectives into one model is an active industrial
+direction~\cite{meta2025gem}, and the obstacle is a pipeline one: under \textsc{Wait} objective
+$k$'s record exists only at $C_i+v_k$, so a shared append-only stream must either write $K$
+records, violating Rule~2 $K$ times over, or delay everything to $\max_k v_k$. Our result
+removes the dilemma: one stream at a single short $o$ can carry $\tilde y_{i,k} = \Yo_{i,k} + (1-\Yo_{i,k})\,\wt_k(x_i)$ for every objective
+at once, because $\wt_k$ is a function the pipeline calls rather than an outcome it awaits ---
+and doing so is an improvement, most of all for the slow objectives that forced the segregation.
+
+\textsc{Ulc} evaluates at write time too and reaches the same accuracy, so the choice is
+architectural: it fits each $w_k$ inside the served model's training loop, turning $K$ objectives
+into $K$ auxiliaries on one optimiser, whereas a teacher puts each $w_k$ upstream with a number
+on a record as its only interface. Sect.~\ref{sec:results} says what that upstream model must
+be --- not large, not costly, not live --- so consolidation adds $K$ build-time artifacts rather
+than $K$ services. That is the regime in which a shared cross-objective foundation model is
+attractive: not because it is big, but because it already exists, already sees matured outcomes
+for every objective, and can be evaluated once per record and then forgotten.
+
+\paragraph{What this does not establish.} We ran one objective at a time, so there is no
+evidence on interference between objectives sharing a trunk --- the central risk, and what a
+multi-task study must measure. Our teacher is a stand-in for the production foundation model the
+argument invokes, not an instance of one, and one corpus with one split measures precision
+rather than generalisation.
+
+\paragraph{Conclusion.} The join window a pipeline waits for can be decoupled from the
+attribution window it answers to: shortened by three orders of magnitude, at better accuracy,
+recovering \recoverSeven{}\% of what a label-peeking oracle could at seven days, and most
+valuable where the funnel is slowest --- provided the record keeps part of its hard label. The
+fully label-free target, the most convenient to consolidate, is the one that fails. The
+experiment this makes worth running is $K$ heads, $K$ windows, one stream, teachers upstream.
