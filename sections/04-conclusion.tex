@@ -1,28 +1,29 @@
-\section{Concluding Remarks}
+\section{Conclusion and Future Work}
 \label{sec:conclusion}
 
 An objective's attribution window is fixed by the business definition of a conversion; the join
-delay its pipeline adopts is not. Setting the two independently improves accuracy rather than
-degrading it, recovering \recoverSeven{}\% of what a label-peeking oracle attains at seven days
-and helping most where the funnel is slowest. Which target to write depends on the capacity
-served: above the smallest rungs the record should keep its observed positive, while at small
-capacity the label can be dropped and the teacher's estimate carried alone.
+delay its training pipeline adopts is not. We have shown that the two can be set independently
+without paying for it. Writing the record within minutes and replacing only its observed
+negatives with a teacher's estimate beats waiting for the matured label in \cdBeatWait{} of
+\nCellsBoth{} configurations and recovers \recoverSeven{}\% of what a label-peeking oracle
+attains at seven days, with the gain growing as the funnel slows, and it does so under the
+single-visit constraint that most published corrections violate. Which target to write is a
+function of the served capacity: a small model can drop the observed label entirely and train
+on the teacher's estimate alone, while a larger one should keep the observed positive. The
+correction is cheap to adopt, being insensitive to the teacher's architecture and still
+effective when the teacher is frozen after initialisation and shipped as a static file.
 
-The consequence is for training several ranking objectives in one model, an active industrial
-direction~\cite{meta2025gem} whose first obstacle is a pipeline obstacle rather than a modelling
-one. Under \textsc{Wait}, objective $k$'s record exists only at $C_i+v_k$, so a shared
-append-only stream must either write $K$ records per click, violating Rule~2 $K$ times over, or
-delay every objective until $\max_k v_k$. A single stream at one short join delay instead
-carries $\tilde y_{i,k}=\Yo_{i,k}+(1-\Yo_{i,k})\,\wt_k(x_i)$ for every objective at once,
-because $\wt_k$ is a function the pipeline evaluates rather than an outcome it awaits.
-\textsc{Ulc} reaches comparable accuracy, so the choice between them is architectural:
-\textsc{Ulc} fits each $w_k$ inside the served model's training loop, whereas a teacher places
-each upstream with a single number written onto a record as its only interface.
-Section~\ref{sec:exp} shows that upstream model need not be retrained while the student trains,
-so consolidation adds $K$ static files to the build rather than $K$ running training jobs.
-
-Two limits bound the claim. We ran one objective at a time, so we have no evidence on
-interference between objectives sharing a trunk, which is the central risk in the target above,
-and one corpus with one chronological split measures precision rather than generalisation. The
-experiment this makes worth running is $K$ prediction heads, $K$ attribution windows, one
-stream, and the teachers placed upstream.
+The next step is consolidating several ranking objectives into one model and one stream, an
+active industrial direction~\cite{meta2025gem} whose first obstacle is a pipeline obstacle
+rather than a modelling one. Under \textsc{Wait}, objective $k$'s record exists only at
+$C_i+v_k$, so a shared append-only stream must either write $K$ records per click, violating
+single-visit $K$ times over, or delay every objective until $\max_k v_k$ and impose the slowest
+funnel's staleness on the fastest. The target studied here removes that dilemma in principle: a
+single stream at one short join delay can carry
+$\tilde y_{i,k}=\Yo_{i,k}+(1-\Yo_{i,k})\,\wt_k(x_i)$ for every objective at once, because
+$\wt_k$ is a function the pipeline evaluates rather than an outcome it awaits, and the teachers
+sit upstream as static files rather than $K$ running training jobs. We ran one objective at a
+time, so the open question is interference: whether $K$ heads sharing a trunk and $K$ soft
+targets of differing sharpness still train stably. Settling it needs $K$ prediction heads, $K$
+attribution windows, one stream, and a production-scale teacher, whose richer features should
+also sharpen the corrector beyond what a corpus of anonymised categorical fields allows.
