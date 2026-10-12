@@ -115,32 +115,16 @@ violates causality and is an upper reference rather than a method.}
 \input{generated/tab_baselines}
 \end{table}
 
-\paragraph{Decoupling the join delay from the attribution window improves accuracy.}
-Writing the record early and replacing only its observed negatives with the teacher's estimate
+\paragraph{With teacher models' prediction as soft target, decoupling the join delay from the attribution window improves accuracy.}
+\textsc{Correct-Distill} method, which writes the record early and replaces only its observed negatives with the teacher's estimate, 
 beats \textsc{Wait} in \cdBeatWait{} of \nCellsBoth{} cells, by \cdSevenMeanAbs{}\% on average
-at $v=7$\,d, where all \nCells{} cells survive Holm--Bonferroni correction, and
+at $v=7$\,d and
 \cdOneMeanAbs{}\% at $v=1$\,d. Figure~\ref{fig:gain} shows where that gain comes from and where
-it runs out. \textsc{Oracle}, which writes at $o$ but reads the matured label, gains
-\oracleSevenAbs{}\% at $v=7$\,d, so little recoverable headroom is left above us, while
-\textsc{Fresh}, the same early write left uncorrected, loses \freshSevenAbs{}\%, an order of
-magnitude more than the gain above it. The correction, not the early write, carries the result.
-Two further features of the figure matter for deployment. The gain is largest where the funnel
-is slowest, because \textsc{Wait} at $v=7$\,d trains on week-old data and no amount of label
-accuracy compensates for that. And the two rows are near-identical: the result does not depend
-on which teacher supplies the estimate, a difference of \teachCdMean{}\,pp over all
-\nCellsBoth{} cells, and freezing that teacher after initialisation so that it ships as a static
-file rather than a second training job costs \frzCostSevenAbs{}\,pp and still beats
-\textsc{Wait} in \frzBeat{} of \frzN{} cells.
-
-\paragraph{Which target to write depends on the served capacity.}
-The two targets separate along the capacity axis. \textsc{Distill-Only}, which carries no
+it runs out. Comparing the $v=7$\,d and $v=1$\,d, the gain is largest where the funnel is slowest, because \textsc{Wait} at $v=7$\,d trains on week-old data and no amount of label accuracy compensates for that. Along the model complexity axis, \textsc{Distill-Only}, which relies purely on the teacher models' predcition and carries no
 observed label at all, beats \textsc{Wait} in all \doSmallBeat{} of \doSmallN{} cells at the two
 smallest capacities, by \doOneSmallAbs{}\% at $v=1$\,d and \doSevenSmallAbs{}\% at $v=7$\,d, and
-loses at the two largest by \doOneLargeAbs{}\% and \doSevenLargeAbs{}\%, crossing over between
-$\mathrm{M}_1$ and $\mathrm{M}_2$ at every join delay, plausibly because a soft target acts as a
-regulariser that a larger model no longer needs~\cite{menon2021statistical}. Early-funnel stages
-such as retrieval can therefore drop the hard label entirely and emit a record of features and
-one number, whereas larger served models should keep the observed positive.
+loses at the two largest by \doOneLargeAbs{}\% and \doSevenLargeAbs{}\%. This trend is plausibly because when a model becomes more complex, it can learn better from the hard targets, then the freshness gain from the soft targets can no longer compensate the information loss from a hard target to a soft target~\cite{menon2021statistical}. However, it can still be applicable for early ranking stages such as retrieval, where the model complexity needs to be low to have a high throughput to rank a large amount of items. In addition, when comparing across different joint delay $o=5, 30$ and $90$ minutes, for $v=7$\,d, larger $o$ improves the model accuracies of \textsc{Correct-Distill}, it is likely to larger $o$ means more hard labels are included.  
+
 Table~\ref{tab:baselines} places both targets against the literature at one operating point,
 $v=1$\,d and $o=90$ minutes. Among the methods a single-visit pipeline can actually run we lead
 at both rungs, \slSmallOur{}\% against \slSmallUlc{}\% for ULC~\cite{wang2023unbiased} at
@@ -148,5 +132,5 @@ $\mathrm{M}_0$ and \slLargeOur{}\% against \slLargeUlc{}\% at $\mathrm{M}_3$, wi
 intervals, and we are better calibrated than \textsc{Wait} at both rungs while \textsc{Fresh}
 degrades calibration error by \slSmallFreshCalRatio{} and \slLargeFreshCalRatio{} times. The
 constraint is not free: \textsc{\slSmallBest} reaches \slSmallBestGain{}\% at $\mathrm{M}_0$ by
-writing the same click several times, which supplies training signal that no single-visit
-target can recover.
+writing the same click several times, which supplies training signal that no method with single-visit
+constraint can recover.

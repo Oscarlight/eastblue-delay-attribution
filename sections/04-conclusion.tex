@@ -2,16 +2,13 @@
 \label{sec:conclusion}
 
 An objective's attribution window is fixed by the business definition of a conversion; the join
-delay its training pipeline adopts is not. We have shown that the two can be set independently
-without paying for it. Writing the record within minutes and replacing only its observed
+delay its training pipeline adopts is not. We have shown that the two can be set independently. 
+Writing the record within minutes and replacing only its observed
 negatives with a teacher's estimate beats waiting for the matured label in \cdBeatWait{} of
 \nCellsBoth{} configurations and recovers \recoverSeven{}\% of what a label-peeking oracle
-attains at seven days, with the gain growing as the funnel slows, and it does so under the
-single-visit constraint that most published corrections violate. Which target to write is a
-function of the served capacity: a small model can drop the observed label entirely and train
-on the teacher's estimate alone, while a larger one should keep the observed positive. The
-correction is cheap to adopt, being insensitive to the teacher's architecture and still
-effective when the teacher is frozen after initialisation and shipped as a static file.
+attains at seven days, and it does so under the
+single-visit constraint that most published corrections violate. The
+correction is cheap to adopt, being insensitive to the teacher's architecture.
 
 The next step is consolidating several ranking objectives into one model and one stream, an
 active industrial direction~\cite{meta2025gem} whose first obstacle is a pipeline obstacle
@@ -20,10 +17,6 @@ $C_i+v_k$, so a shared append-only stream must either write $K$ records per clic
 single-visit $K$ times over, or delay every objective until $\max_k v_k$ and impose the slowest
 funnel's staleness on the fastest. The target studied here removes that dilemma in principle: a
 single stream at one short join delay can carry
-$\tilde y_{i,k}=\Yo_{i,k}+(1-\Yo_{i,k})\,\wt_k(x_i)$ for every objective at once, because
-$\wt_k$ is a function the pipeline evaluates rather than an outcome it awaits, and the teachers
-sit upstream as static files rather than $K$ running training jobs. We ran one objective at a
-time, so the open question is interference: whether $K$ heads sharing a trunk and $K$ soft
-targets of differing sharpness still train stably. Settling it needs $K$ prediction heads, $K$
-attribution windows, one stream, and a production-scale teacher, whose richer features should
-also sharpen the corrector beyond what a corpus of anonymised categorical fields allows.
+$\tilde y_{i,k}=\Yo_{i,k}+(1-\Yo_{i,k})\,\wt_k(x_i)$ for every objective at once. 
+For future works, we will generalize to $K$ prediction heads, $K$
+attribution windows, one stream, and a production-scale teacher model.
