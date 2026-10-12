@@ -380,11 +380,18 @@ def build() -> dict:
     return m
 
 
-#: Methods are named in small caps without a citation unless refs.bib actually carries the
-#: entry. Inventing a BibTeX key for a method we reproduced from its description would be worse
-#: than naming it plainly, so the map below is deliberately sparse.
+#: Every reproduced method's source, verified against the PDF in the project's reference set:
+#: author list, title and venue were read off each paper's front matter rather than recalled.
+#: Used at both mentions, the duplication screen in Sect. 2 and Table 1, so a method is never
+#: named without its citation.
 CITE = {
     "DFM": r"~\cite{chapelle2014modeling}",
+    "ES-DFM": r"~\cite{yang2021capturing}",
+    "DEFUSE": r"~\cite{chen2022asymptotically}",
+    "FTP": r"~\cite{li2021follow}",
+    "DDFM": r"~\cite{dai2023dually}",
+    "MISS": r"~\cite{liu2024online}",
+    "PI": r"~\cite{zhang2025personalized}",
     "FSIW": r"~\cite{yasui2020feedback}",
     "ULC": r"~\cite{wang2023unbiased}",
 }
@@ -531,7 +538,7 @@ def write_tex(m: dict) -> None:
     fail = sc[~sc["pass"]].sort_values("dup", ascending=False)
     (out / "tab_baselines.tex").write_text(baseline_table(m, sc))
     (out / "screen_inline.tex").write_text(
-        ", ".join(rf"\textsc{{{r.arm.replace('-', '{-}')}}}~{r.dup:.2f}"
+        ", ".join(rf"\textsc{{{r.arm.replace('-', '{-}')}}}{CITE.get(r.arm, '')}~{r.dup:.2f}"
                   for r in fail.itertuples()) + "\n")
     print(f"wrote {out}/macros.tex ({len(m)} macros) and screen_inline.tex")
 
