@@ -142,44 +142,47 @@ random: the shortest join delay at the fast window is where the teacher has leas
 \paragraph{Comparison with published methods at a production-like operating point.}
 Table~\ref{tab:baselines} fixes one cell rather than averaging the grid: the fast window at the
 longest join delay, $v=1$\,d and $o=90$ minutes. That is the cell a large-scale advertising
-system actually sits in, where an upper-funnel objective closes within a day and the pipeline
-still needs the better part of an hour to join. It pools both campaigns, so each method is
-summarised by every replicate we have of it.
+system sits in, where an upper-funnel objective closes within a day and the pipeline still needs
+the better part of an hour to join. It pools both campaigns and shows the two ends of the
+capacity ladder separately, because averaging them reports neither.
 
-\begin{table}[t]
+\begin{table}[!t]
 \centering
-\small
+\footnotesize
+\setlength{\tabcolsep}{4pt}
 \caption{All reproduced methods at $v=1$\,d and $o=90$ minutes, the operating point closest to
-a large-scale production setting. Each value is a mean over the five served capacities, and the
-bracketed digits are the half-width of its 95\% $t$ interval in units of the last decimal
-place, so $0.7409(5)$ reads as $0.7409 \pm 0.0005$. The replicate is a seed, five per arm,
-ten for \textsc{Wait}, and fifteen for the two arms that ran under both teachers, where it is a
-(teacher, seed) pair. $\NE$ and calibration error are absolute and lower is better;
-$\Delta\NE$ is the per-seed paired reduction against \textsc{Wait} and higher is better.
-Rule~1 is causality and Rule~2 single-visit, so a row reading yes~/~yes is one a streaming
-pipeline can deploy. Our two targets are set in bold. $^{\dagger}$At the two smallest capacities of this same cell
-\textsc{Distill-Only} gains \sliceDoSmall{}\,$\pm$\,\sliceDoSmallCi{}\%.}
+a large-scale production setting, at the smallest and largest served capacities. $\NE$ and
+calibration error are absolute and lower is better; $\Delta\NE$ is the per-seed paired
+reduction against \textsc{Wait} in percent, higher is better, reported with the half-width of
+its 95\% $t$ interval. The replicate is a seed, five per arm and ten for \textsc{Wait}, and a
+(teacher, seed) pair for the two arms in bold, which are ours and ran under both teachers.
+$^{\ddagger}$\textsc{Oracle} writes one record but labels it with the matured outcome, so it
+violates Rule~1 and is an upper reference rather than a method.}
 \label{tab:baselines}
 \input{generated/tab_baselines}
 \end{table}
 
-Four things follow. First, the one-record rule is cheap but not free: the best method overall is
-\textsc{\sliceBest} at \sliceBestGain{}\%, and it buys its \slicePrice{}\,pp lead over us by
-writing \vanillaDup{} records per click, which this pipeline cannot do. Second, among methods
-that can actually run on such a stream ours is first, at
-\sliceOurGain{}\,$\pm$\,\sliceOurCi{}\%, though its interval overlaps
-\textsc{Ulc}~\cite{wang2023unbiased} at \sliceUlcGain{}\,$\pm$\,\sliceUlcCi{}\%, so at this cell
-the two are level and the case for an offline teacher over an online corrector rests on
-architecture rather than accuracy, as Section~\ref{sec:conclusion} argues. Over the full grid
-the margin is larger, \ourUlcSeven{}\,pp at seven days across \ourUlcWinSeven{} of \nCells{}
-cells. Third, \textsc{Oracle} bounds only the methods that obey Rule~2: at
-\sliceOracleGain{}\% it is itself beaten by \sliceOverOracle{} arms that duplicate records,
-because writing a click several times supplies training signal that no single-visit target can
-recover, however perfect its label. Fourth, the gain does not come at the cost of calibration.
-\textsc{Correct-Distill} reaches calibration error \sliceOurCal{} against \textsc{Wait}'s
-\sliceWaitCal{} while improving $\NE$, whereas \textsc{Fresh}, the same early write left
-uncorrected, degrades it to \sliceFreshCal{}, a factor of \sliceFreshCalRatio{}. Softening the
-observed negatives repairs the censored target's bias, not merely its ranking.
+Four things follow. First, the two rungs disagree, which is why both are shown. At
+$\mathrm{M}_0$ correcting the early write is worth \slSmallOur{}\,$\pm$\,\slSmallOurCi{}\% and
+very nearly exhausts what any causal correction could take, since \textsc{Oracle} reaches
+\slSmallOracle{}\% and we recover \slSmallRecover{}\% of it. At $\mathrm{M}_4$ everything
+compresses: \textsc{Oracle} itself is only \slLargeOracle{}\%, and our
+\slLargeOur{}\,$\pm$\,\slLargeOurCi{}\% is \slLargeRecover{}\% of that. This cell simply has
+little delay left to correct, because \foOneNinety{} of its conversions are already visible when
+the record is written. Second, the single-visit rule is cheap at small capacity and not at
+large: \textsc{\slSmallBest} leads at $\mathrm{M}_0$ with \slSmallBestGain{}\%, far above the
+single-visit \textsc{Oracle}, because duplicating a click supplies training signal that matters
+most when the model has least capacity to extract it. Third, among methods a streaming pipeline
+can run we lead at $\mathrm{M}_0$, where \textsc{Ulc}~\cite{wang2023unbiased} reaches
+\slSmallUlc{}\% within our interval, but not at $\mathrm{M}_4$, where
+\textsc{Fsiw}~\cite{yasui2020feedback} reaches \slLargeFsiw{}\,$\pm$\,\slLargeFsiwCi{}\% by
+correcting the loss rather than the target. \textsc{Fsiw} averages $\fsiwOne{}$\% across this window's \nCells{} cells, so
+that rung flatters it rather than describing it, and across the slow window's \nCells{} cells we
+lead \textsc{Ulc} by \ourUlcSeven{}\,pp in \ourUlcWinSeven{} of \nCells{} cells. Fourth, the gain does not cost calibration.
+\textsc{Correct-Distill} is better calibrated than \textsc{Wait} at both rungs, while
+\textsc{Fresh}, the same early write left uncorrected, degrades calibration error by
+\slSmallFreshCalRatio{} and \slLargeFreshCalRatio{} times. Softening the observed negatives
+repairs the censored target's bias, not merely its ranking.
 
 \paragraph{Robustness to the teacher, and what bounds it on this corpus.}
 Substituting teacher 1 for teacher 2 changes

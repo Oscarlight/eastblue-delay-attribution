@@ -1,20 +1,25 @@
-\begin{tabular}{@{}lcrrr@{}}
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Method & Rule 1 / 2 & $\NE$ & Cal.\ err. & $\Delta\NE$ (\%) \\
+ & \multicolumn{3}{c}{M$_0$ (smallest)} & \multicolumn{3}{c}{M$_4$ (largest)} \\
+\cmidrule(lr){2-4}\cmidrule(l){5-7}
+Method & $\NE$ & Cal. & $\Delta\NE$ (\%) & $\NE$ & Cal. & $\Delta\NE$ (\%) \\
 \midrule
-\textsc{Wait} & yes / yes & 0.7409(5) & 0.0648(13) & ref. \\
-\textsc{DFM}~\cite{chapelle2014modeling} & yes / no & 0.7344(4) & 0.0577(6) & +0.82(5) \\
-\textsc{FTP} & yes / no & 0.7351(6) & 0.0535(26) & +0.76(7) \\
-\textsc{Oracle} & no / yes & 0.7352(10) & 0.0584(29) & +0.75(9) \\
-\textbf{\textsc{Correct{-}Distill}} & yes / yes & 0.7360(4) & 0.0647(13) & +0.64(3) \\
-\textsc{ULC}~\cite{wang2023unbiased} & yes / yes & 0.7362(6) & 0.0666(17) & +0.60(4) \\
-\textsc{FSIW}~\cite{yasui2020feedback} & yes / yes & 0.7363(8) & 0.0679(17) & +0.60(6) \\
-\textsc{PI} & yes / no & 0.7368(11) & 0.0773(9) & +0.54(12) \\
-\textsc{DEFUSE} & yes / no & 0.7376(7) & 0.0814(20) & +0.42(6) \\
-\textsc{ES{-}DFM} & yes / no & 0.7378(8) & 0.0826(19) & +0.39(6) \\
-\textsc{MISS} & yes / no & 0.7413(5) & 0.1086(31) & $-$0.08(7) \\
-\textbf{\textsc{Distill{-}Only}}$^{\dagger}$ & yes / yes & 0.7417(6) & 0.0725(67) & $-$0.14(7) \\
-\textsc{DDFM} & yes / no & 0.7422(3) & 0.0592(13) & $-$0.18(8) \\
-\textsc{Fresh} & yes / yes & 0.7526(10) & 0.1823(20) & $-$1.61(9) \\
+\multicolumn{7}{@{}l}{\emph{Single visited: yes}} \\
+\textsc{Wait} & 0.7865 & 0.0578 & ref. & 0.7209 & 0.0737 & ref. \\
+\textsc{FSIW}~\cite{yasui2020feedback} & 0.7785 & 0.0553 & +1.03\,$\pm$\,0.26 & 0.7173 & 0.0781 & +0.51\,$\pm$\,0.09 \\
+\textsc{Oracle}$^{\ddagger}$ & 0.7769 & 0.0489 & +1.23\,$\pm$\,0.28 & 0.7194 & 0.0617 & +0.22\,$\pm$\,0.08 \\
+\textbf{\textsc{Correct{-}Distill}} & 0.7772 & 0.0555 & +1.19\,$\pm$\,0.12 & 0.7203 & 0.0676 & +0.09\,$\pm$\,0.06 \\
+\textsc{ULC}~\cite{wang2023unbiased} & 0.7773 & 0.0529 & +1.18\,$\pm$\,0.22 & 0.7207 & 0.0707 & +0.04\,$\pm$\,0.06 \\
+\textbf{\textsc{Distill{-}Only}} & 0.7821 & 0.0672 & +0.56\,$\pm$\,0.14 & 0.7256 & 0.0782 & $-$0.65\,$\pm$\,0.06 \\
+\textsc{Fresh} & 0.7929 & 0.1855 & $-$0.80\,$\pm$\,0.25 & 0.7345 & 0.1813 & $-$1.88\,$\pm$\,0.10 \\
+\midrule
+\multicolumn{7}{@{}l}{\emph{Single visited: no}} \\
+\textsc{DDFM} & 0.7902 & 0.0632 & $-$0.46\,$\pm$\,0.31 & 0.7168 & 0.0572 & +0.57\,$\pm$\,0.09 \\
+\textsc{PI} & 0.7806 & 0.0692 & +0.76\,$\pm$\,0.43 & 0.7181 & 0.0811 & +0.40\,$\pm$\,0.03 \\
+\textsc{FTP} & 0.7786 & 0.0515 & +1.02\,$\pm$\,0.18 & 0.7187 & 0.0636 & +0.31\,$\pm$\,0.16 \\
+\textsc{DEFUSE} & 0.7789 & 0.0681 & +0.98\,$\pm$\,0.30 & 0.7217 & 0.0856 & $-$0.10\,$\pm$\,0.07 \\
+\textsc{ES{-}DFM} & 0.7791 & 0.0690 & +0.96\,$\pm$\,0.31 & 0.7219 & 0.0869 & $-$0.13\,$\pm$\,0.08 \\
+\textsc{DFM}~\cite{chapelle2014modeling} & 0.7569 & 0.0612 & +3.78\,$\pm$\,0.19 & 0.7236 & 0.0584 & $-$0.37\,$\pm$\,0.09 \\
+\textsc{MISS} & 0.7830 & 0.0826 & +0.45\,$\pm$\,0.24 & 0.7268 & 0.1229 & $-$0.82\,$\pm$\,0.23 \\
 \bottomrule
 \end{tabular}

@@ -174,57 +174,58 @@ def main() -> None:
             claim(f"lead over ULC {tag}", f"{lead:+.2f} pp", f"{lead:+.2f}")
             claim(f"cells beating ULC {tag}", f"{wins} of {len(ours)}", f"{wins} of 15")
 
-    # --- Table 1: the production-like cell, v=1d and o=90 min ---------------------------------
-    # Re-derived here from the two parquets with an independent code path: concatenate, drop the
-    # 850 duplicated re-runs on the run key, average each (arm, seed) replicate over the five
-    # capacities, then take a t interval across replicates. Methods that ran under both teachers
-    # pool their two arm names, which is why n is 15 rather than 5 for ours.
+    # --- Table 1: the production-like cell, v=1d and o=90 min, at M0 and M4 -------------------
+    # Independent re-derivation: concatenate both campaigns, drop the 850 duplicated re-runs on
+    # the run key, then take a t interval across replicates AT EACH CAPACITY. The table shows
+    # the ends of the ladder separately because averaging them hid a reversal, so the check
+    # follows suit rather than verifying a mean the paper no longer prints.
     KEY = ["arm", "task", "o_min", "cap", "seed"]
     SL = pd.concat([V3, V4], ignore_index=True).drop_duplicates(subset=KEY, keep="first")
     SL = SL[(SL.task == "1d") & (SL.o_min == 90)]
-    SW = SL[SL.arm == "DISTILL_T"].set_index(["cap", "seed"])["ne"]
-
-    def reps(arms):
-        ne, gain = [], []
-        for a in arms:
-            for seed, g in SL[SL.arm == a].groupby("seed"):
-                g = g.set_index("cap")
-                if not set(CAPS) <= set(g.index):
-                    continue
-                v = g.loc[CAPS, "ne"].to_numpy()
-                b = np.array([SW.loc[(c, seed)] for c in CAPS])
-                ne.append(v.mean())
-                gain.append(float(np.mean(100.0 * (b - v) / b)))
-        return np.array(ne), np.array(gain)
-
-    def tci(v):
-        return v.mean(), stats.t.ppf(0.975, len(v) - 1) * v.std(ddof=1) / np.sqrt(len(v))
 
     TAB = {"DFM": ["DFM"], "ES-DFM": ["ES-DFM"], "DEFUSE": ["DEFUSE"], "DDFM": ["DDFM"],
            "FTP": ["FTP"], "MISS": ["MISS"], "PI": ["PI"], "FSIW": ["FSIW"], "ULC": ["ULC"],
-           "Oracle": ["Oracle"], "Fresh": ["DISTILL_nokd"],
+           "Oracle": ["Oracle"], "Fresh": ["DISTILL_nokd"], "Wait": ["DISTILL_T"],
            "Correct-Distill": ["DISTILL_Tmlp", "DISTILL_T13"],
            "Distill-Only": ["DISTILL_pvmlp", "DISTILL_pv"]}
-    gains = {}
-    for name, arms in TAB.items():
-        ne, g = reps(arms)
-        gm, gh = tci(g)
-        nm, nh = tci(ne)
-        gains[name] = gm
-        claim(f"Table 1 {name} dNE", f"{gm:+.2f} +-{gh:.2f}", f"{gm:+.2f}")
-        claim(f"Table 1 {name} NE", f"{nm:.4f} +-{nh:.4f}", f"{nm:.4f}")
+    NONCOMP = ("DFM", "ES-DFM", "DEFUSE", "DDFM", "FTP", "MISS", "PI")
 
-    # The headline reading of the table: the leader duplicates, and Oracle does not bound it.
-    best = max((k for k in TAB if k in ("DFM", "ES-DFM", "DEFUSE", "DDFM", "FTP", "MISS", "PI")),
-               key=lambda k: gains[k])
-    claim(f"price of single-visit at the cell (vs {best})",
-          f"{gains[best] - gains['Correct-Distill']:.2f} pp",
-          f"{gains[best] - gains['Correct-Distill']:.2f}")
-    over = sum(1 for k in ("DFM", "ES-DFM", "DEFUSE", "DDFM", "FTP", "MISS", "PI")
-               if gains[k] > gains["Oracle"])
-    claim("duplicating arms above the single-visit Oracle", f"{over}", f"{over} arms")
-    assert gains["Correct-Distill"] > max(gains["ULC"], gains["FSIW"]), \
-        "paper says ours leads the single-visit group at this cell"
+    def tci(v):
+        v = np.asarray(v, float)
+        return v.mean(), stats.t.ppf(0.975, len(v) - 1) * v.std(ddof=1) / np.sqrt(len(v))
+
+    gains = {}
+    for cap, lab in (("A0", "M0"), ("A4", "M4")):
+        w = SL[(SL.arm == "DISTILL_T") & (SL.cap == cap)].set_index("seed")["ne"]
+        gains[lab] = {}
+        for name, arms in TAB.items():
+            ne, g = [], []
+            for a_ in arms:
+                for seed, r in SL[(SL.arm == a_) & (SL.cap == cap)].groupby("seed"):
+                    v = float(r["ne"].iloc[0])
+                    ne.append(v)
+                    g.append(100.0 * (w.loc[seed] - v) / w.loc[seed])
+            gm, gh = tci(g)
+            nm, _ = tci(ne)
+            gains[lab][name] = gm
+            claim(f"Table 1 {lab} {name} NE", f"{nm:.4f}", f"{nm:.4f}")
+            if name != "Wait":
+                claim(f"Table 1 {lab} {name} dNE", f"{gm:+.2f} +-{gh:.2f}", f"{gm:+.2f}")
+
+    # The readings the prose takes off the table.
+    assert gains["M0"]["Correct-Distill"] > gains["M0"]["ULC"], "paper: we lead ULC at M0"
+    assert gains["M4"]["FSIW"] > gains["M4"]["Correct-Distill"], "paper: FSIW leads at M4"
+    for lab in ("M0", "M4"):
+        rec = 100 * gains[lab]["Correct-Distill"] / gains[lab]["Oracle"]
+        claim(f"{lab} share of the Oracle headroom", f"{rec:.0f}%", f"{rec:.0f}")
+    best0 = max(NONCOMP, key=lambda k: gains["M0"][k])
+    claim(f"M0 leader duplicates ({best0})", f"{gains['M0'][best0]:+.2f}",
+          f"{gains['M0'][best0]:+.2f}")
+    assert gains["M0"][best0] > gains["M0"]["Oracle"], \
+        "paper says the M0 leader clears the single-visit Oracle"
+    # Distill-Only changes sign across the ladder; that is contribution 3 in one row.
+    assert gains["M0"]["Distill-Only"] > 0 > gains["M4"]["Distill-Only"], \
+        "paper says Distill-Only wins at M0 and loses at M4"
 
     assert "TWICE" not in PDF and "Twice" not in PDF, "TWICE must not appear in the paper"
     assert "IF-DFM" not in PDF, "IF-DFM must not appear in the paper"

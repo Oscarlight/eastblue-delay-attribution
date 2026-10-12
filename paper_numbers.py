@@ -205,6 +205,7 @@ def build() -> dict:
     m["ratioOne"] = f"{int(round(24 * 60 / 5))}"
     m["foOneFive"] = f"{F_O[('1d', 5)]:.3f}"
     m["foSevenFive"] = f"{F_O[('7d', 5)]:.3f}"
+    m["foOneNinety"] = f"{F_O[('1d', 90)]:.3f}"
 
     # ---- Wait baseline --------------------------------------------------------------------
     w = V4[V4.arm == WAIT].groupby(["task", "o_min", "cap"])["ne"].mean()
@@ -315,41 +316,26 @@ def build() -> dict:
     m["nRunsBoth"] = f"{len(V3) + len(V4):,}"
 
     # ---- Table 1's operating point, quoted in the prose around it ---------------------------
-    st = slice_stats()
-    best = max((k for k in st if st[k]["r2"] == "no"), key=lambda k: st[k]["gain"][0])
-    m["sliceBest"] = best
-    m["sliceBestGain"] = f"{st[best]['gain'][0]:+.2f}"
-    m["sliceOurGain"] = f"{st['Correct-Distill']['gain'][0]:+.2f}"
-    m["sliceOurCi"] = f"{st['Correct-Distill']['gain'][1]:.2f}"
-    m["sliceUlcGain"] = f"{st['ULC']['gain'][0]:+.2f}"
-    m["sliceUlcCi"] = f"{st['ULC']['gain'][1]:.2f}"
-    m["slicePrice"] = f"{st[best]['gain'][0] - st['Correct-Distill']['gain'][0]:.2f}"
-    m["sliceOracleGain"] = f"{st['Oracle']['gain'][0]:+.2f}"
-    m["sliceWaitNe"] = f"{st['Wait']['ne'][0]:.4f}"
-    m["sliceWaitCal"] = f"{st['Wait']['cal'][0]:.4f}"
-    m["sliceOurCal"] = f"{st['Correct-Distill']['cal'][0]:.4f}"
-    m["sliceFreshCal"] = f"{st['Fresh']['cal'][0]:.4f}"
-    m["sliceFreshCalRatio"] = f"{st['Fresh']['cal'][0] / st['Wait']['cal'][0]:.1f}"
-    #: how many non-compliant arms clear the single-visit Oracle at this cell
-    m["sliceOverOracle"] = str(sum(1 for k, r in st.items()
-                                   if r["r2"] == "no" and r["gain"][0] > st["Oracle"]["gain"][0]))
-
-    # Distill-Only at the two smallest rungs of this same cell, for Table 1's dagger note.
-    d1 = combined()
-    d1 = d1[(d1.task == SLICE_TASK) & (d1.o_min == SLICE_O)]
-    w1 = d1[d1.arm == WAIT].set_index(["cap", "seed"])["ne"]
-    g1 = []
-    for a in (TEACHER_ALT[DO], DO):
-        for seed, g in d1[d1.arm == a].groupby("seed"):
-            g = g.set_index("cap")
-            if not set(SMALL) <= set(g.index):
-                continue
-            v = g.loc[SMALL, "ne"].to_numpy()
-            base = np.array([w1.loc[(c, seed)] for c in SMALL])
-            g1.append(float(np.mean(100.0 * (base - v) / base)))
-    mu, hw = _ci(g1)
-    m["sliceDoSmall"] = f"{mu:+.2f}"
-    m["sliceDoSmallCi"] = f"{hw:.2f}"
+    # Reported at the two ends of the ladder because averaging them hid a reversal.
+    for cap, key in (("A0", "Small"), ("A4", "Large")):
+        st = slice_stats(cap)
+        best = max((k for k in st if st[k]["r2"] == "no"), key=lambda k: st[k]["gain"][0])
+        m[f"sl{key}Best"] = best
+        m[f"sl{key}BestGain"] = f"{st[best]['gain'][0]:+.2f}"
+        m[f"sl{key}Our"] = f"{st['Correct-Distill']['gain'][0]:+.2f}"
+        m[f"sl{key}OurCi"] = f"{st['Correct-Distill']['gain'][1]:.2f}"
+        m[f"sl{key}Ulc"] = f"{st['ULC']['gain'][0]:+.2f}"
+        m[f"sl{key}Fsiw"] = f"{st['FSIW']['gain'][0]:+.2f}"
+        m[f"sl{key}FsiwCi"] = f"{st['FSIW']['gain'][1]:.2f}"
+        m[f"sl{key}Do"] = f"{st['Distill-Only']['gain'][0]:+.2f}"
+        m[f"sl{key}DoCi"] = f"{st['Distill-Only']['gain'][1]:.2f}"
+        m[f"sl{key}Oracle"] = f"{st['Oracle']['gain'][0]:+.2f}"
+        m[f"sl{key}WaitNe"] = f"{st['Wait']['ne'][0]:.4f}"
+        m[f"sl{key}WaitCal"] = f"{st['Wait']['cal'][0]:.4f}"
+        m[f"sl{key}FreshCal"] = f"{st['Fresh']['cal'][0]:.4f}"
+        m[f"sl{key}FreshCalRatio"] = f"{st['Fresh']['cal'][0] / st['Wait']['cal'][0]:.1f}"
+        #: share of the causal headroom the hybrid target actually takes at this rung
+        m[f"sl{key}Recover"] = f"{100 * st['Correct-Distill']['gain'][0] / st['Oracle']['gain'][0]:.0f}"
 
     # Cross-campaign reproduction. The second campaign re-executed a subset of the first's
     # configurations under its own source revision; every one returned the identical NE. This is
@@ -456,62 +442,84 @@ def _ci(v):
     return float(v.mean()), float(stats.t.ppf(0.975, len(v) - 1) * v.std(ddof=1) / np.sqrt(len(v)))
 
 
-def slice_stats() -> dict:
-    """Per-method NE, calibration error and paired gain over Wait at the production-like cell."""
+def slice_stats(cap: str) -> dict:
+    """Per-method NE, calibration error and paired gain over Wait at one served capacity.
+
+    The table fixes the cell (v=1d, o=90 min) and then shows the two ends of the capacity
+    ladder separately rather than averaging them. Averaging hid a reversal: at the smallest
+    rung the delay is worth over a point of NE, at the largest it is worth almost nothing,
+    and a single mean reports neither.
+    """
     d = combined()
-    d = d[(d.task == SLICE_TASK) & (d.o_min == SLICE_O)]
-    w = d[d.arm == WAIT].set_index(["cap", "seed"])["ne"]
+    d = d[(d.task == SLICE_TASK) & (d.o_min == SLICE_O) & (d.cap == cap)]
+    w = d[d.arm == WAIT].set_index("seed")["ne"]
     out = {}
     for name, arms, r1, r2 in SLICE_METHODS:
         ne, cal, gain = [], [], []
-        for a in arms:
-            for seed, g in d[d.arm == a].groupby("seed"):
-                g = g.set_index("cap")
-                if not set(CAPS) <= set(g.index):
-                    continue                      # never average over a partial ladder
-                v = g.loc[CAPS, "ne"].to_numpy()
-                ne.append(v.mean())
-                cal.append(g.loc[CAPS, "cal_err"].to_numpy().mean())
-                base = np.array([w.loc[(c, seed)] for c in CAPS])
-                gain.append(float(np.mean(100.0 * (base - v) / base)))
+        for a_ in arms:
+            for seed, r in d[d.arm == a_].groupby("seed"):
+                v = float(r["ne"].iloc[0])
+                ne.append(v)
+                cal.append(float(r["cal_err"].iloc[0]))
+                gain.append(100.0 * (w.loc[seed] - v) / w.loc[seed])
         out[name] = dict(n=len(ne), ne=_ci(ne), cal=_ci(cal), gain=_ci(gain), r1=r1, r2=r2)
     return out
 
 
+#: The two ends of the served-capacity ladder, by data key and display name.
+SLICE_CAPS = [("A0", "M$_0$ (smallest)"), ("A4", "M$_4$ (largest)")]
+
+
 def baseline_table(m: dict, sc: pd.DataFrame) -> str:
-    """Table 1: every reproduced method at the production-like cell, v=1d and o=90 min.
+    """Table 1: all reproduced methods at v=1d and o=90 min, at the two ends of the ladder.
 
-    Rows are sorted by the gain so the table reads as a leaderboard, with Wait first as the
-    reference it is measured against. Rule 1 is causality and Rule 2 single-visit, so the
-    yes/no pair identifies at a glance which rows describe a deployable streaming pipeline.
+    Grouped by whether the method writes one record per click, because that is the constraint
+    the paper is about and a grouped table says it without a yes/no column per row. Within a
+    group rows are ordered by the gain at the largest capacity, the rung closest to a
+    production-scale served model, with Wait first as the reference everything is measured
+    against.
     """
-    st = slice_stats()
-    order = ["Wait"] + sorted((k for k in st if k != "Wait"),
-                              key=lambda k: -st[k]["gain"][0])
+    st = {c: slice_stats(c) for c, _ in SLICE_CAPS}
+    big = st[SLICE_CAPS[-1][0]]
 
-    def paren(mu, hw, dp, signed=False):
-        """``0.7409(5)``: the bracketed digits are the 95% half-width in units of the last
-        decimal place. Three intervals plus a method name do not fit the LNCS text block in
-        ``x $\\pm$ y`` form, and this convention is compact and unambiguous once the caption
-        says so. The column of point estimates also stays readable as a column."""
-        v = f"{mu:+.{dp}f}" if signed else f"{mu:.{dp}f}"
-        return f"{minus(v)}({round(hw * 10 ** dp):.0f})"
+    def num(mu, dp):
+        return minus(f"{mu:.{dp}f}")
 
-    body = ""
-    for name in order:
-        r = st[name]
+    def pm(mu, hw):
+        return f"{minus(f'{mu:+.2f}')}\,$\pm$\,{hw:.2f}"
+
+    def row(name):
+        r0, r4 = st["A0"][name], st["A4"][name]
         tag = rf"\textsc{{{name.replace('-', '{-}')}}}{CITE.get(name, '')}"
         if name in ("Correct-Distill", "Distill-Only"):
             tag = rf"\textbf{{{tag}}}"
-        if name == "Distill-Only":
-            tag += r"$^{\dagger}$"
-        gain = "ref." if name == "Wait" else paren(*r["gain"], 2, signed=True)
-        body += " & ".join([tag, f"{r['r1']} / {r['r2']}",
-                            paren(*r["ne"], 4), paren(*r["cal"], 4), gain]) + r" \\" + "\n"
+        if name == "Oracle":
+            tag += r"$^{\ddagger}$"
+        cells = [tag]
+        for r in (r0, r4):
+            g = "ref." if name == "Wait" else pm(*r["gain"])
+            cells += [num(r["ne"][0], 4), num(r["cal"][0], 4), g]
+        return " & ".join(cells) + r" \\" + "\n"
 
-    return ("\\begin{tabular}{@{}lcrrr@{}}\n\\toprule\n"
-            "Method & Rule 1 / 2 & $\\NE$ & Cal.\\ err. & $\\Delta\\NE$ (\\%) \\\\\n"
-            "\\midrule\n" + body + "\\bottomrule\n\\end{tabular}\n")
+    def block(title, names):
+        names = sorted(names, key=lambda k: -big[k]["gain"][0])
+        if "Wait" in names:                      # the reference leads its group
+            names = ["Wait"] + [n for n in names if n != "Wait"]
+        head = rf"\multicolumn{{7}}{{@{{}}l}}{{\emph{{{title}}}}} \\" + "\n"
+        return head + "".join(row(n) for n in names)
+
+    yes = [n for n, _, _, r2 in [(a, b, c, d) for a, b, c, d in SLICE_METHODS] if r2 == "yes"]
+    no = [n for n, _, _, r2 in [(a, b, c, d) for a, b, c, d in SLICE_METHODS] if r2 == "no"]
+
+    hdr = (" & " + " & ".join(rf"\multicolumn{{3}}{{c}}{{{lab}}}" for _, lab in SLICE_CAPS)
+           + r" \\" + "\n" + r"\cmidrule(lr){2-4}\cmidrule(l){5-7}" + "\n"
+           + "Method" + " & $\\NE$ & Cal. & $\\Delta\\NE$ (\\%)" * 2 + r" \\" + "\n")
+
+    return ("\\begin{tabular}{@{}lrrrrrr@{}}\n\\toprule\n" + hdr + "\\midrule\n"
+            + block("Single visited: yes", yes)
+            + "\\midrule\n"
+            + block("Single visited: no", no)
+            + "\\bottomrule\n\\end{tabular}\n")
 
 
 def write_tex(m: dict) -> None:
