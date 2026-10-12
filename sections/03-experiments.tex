@@ -10,26 +10,24 @@
 % \footnotetext{Harness, configurations and per-run outputs: \url{...}}
 
 \paragraph{Data and protocol.} We use the public Criteo conversion logs released
-with~\cite{chapelle2014modeling}. Clicks span 60 days. Days $[0,30)$ initialise the model causally and days
-$[30,60)$ form the streaming period, divided into \nCohorts{} hourly rounds yielding \nEval{}
+with~\cite{chapelle2014modeling}. Clicks span 60 days. Days $[0,30)$ initialise the model and days
+$[30,60)$ form the hourly online training period, divided into \nCohorts{} hourly rounds yielding \nEval{}
 scored clicks at a base conversion rate of \baseRate{}. Learning rates are selected per arm and
-per cell from a seven-point grid on a held-out slice of the initialisation period, before any
-streaming evaluation, then pinned across seeds. The teacher's rate is fixed and decoupled from
-the student's.
+per cell from a seven-point grid on a held-out slice of the initialisation period, then pinned across seeds. The teacher model's rate is fixed and decoupled from
+the serving model's.
 
 \paragraph{Model architecture.} In the model arch backbone, the eight integer fields enter a dense
 arm as $\log(1+x)$ paired with an observed-mask bit, normalised and passed through a two-layer
 perceptron to a projection vector. The nine categorical fields are hashed per field and
-embedded, one identifier per field, giving a token per field. Tokens and the dense projection
+embedded, giving a token per field. Tokens and the dense projection
 % TODO before submission: cite the Wukong paper here. It is not yet in refs.bib and the
 % authoring host has no network, so the layer is named without a citation for now, consistent
 % with how Sect. 2 names the screened methods.
-are then consumed by a stack of Wukong interaction layers.
+are then consumed by a stack of Wukong interaction layers, then output the final prediction.
 % , each of which
 % takes a token set and returns a token set of the same width so layers compose, combining a
 % factorisation-machine block for explicit pairwise interaction with a linear compression block
 % carried as a residual. 
-The final token set is flattened to a single logit for final output.
 
 % \paragraph{Scaling complexity of the served model.} The five rungs $\mathrm{M}_0$ to $\mathrm{M}_4$ move three
 % dials together rather than one: the interaction trunk is taken from successive rungs of a
@@ -45,21 +43,19 @@ The final token set is flattened to a single logit for final output.
 % report both rather than let one stand for the other.
 
 \paragraph{Different setups and evaluation metric.} Two attribution windows ($v\in\{1, 7\}$ days), three
-join delays ($o\in\{5,30,90\}$ minutes), serving models with four different complexities
+join delays ($o\in\{5,30,90\}$ minutes), four different serving model complexities
 ($\mathrm{M}_0$ to $\mathrm{M}_3$), and two different teacher models are used. Across the four
 complexities the hash width per categorical field grows $36 \to 256 \to 1{,}280 \to 16{,}384$
 and the embedding dimension widens $4 \to 4 \to 8 \to 8$, roughly an order of magnitude of
 parameters per step, \capMin{} to \capMax{} parameters and \flopMin{} to \flopMax{} MFLOPs per
-inference. A fifth rung at full table resolution was run but is excluded here: it is the only
-one built on the full trunk rather than a frontier node, so it costs 30 times the compute of
-$\mathrm{M}_3$ for 8 times the parameters and breaks the ladder's spacing.
+inference.
 For the two teacher models, \emph{Teacher 1} places
 8-dimensional embedding tables under a two-layer perceptron, giving \teacherSmallParams{}
 parameters at \teacherSmallFlops{} MFLOPs. \emph{Teacher 2} places 48-dimensional tables under a
 deep interaction trunk, giving \teacherParams{} parameters at \teacherFlops{} MFLOPs. Running
 both is what lets us report the method's sensitivity to the choice of teacher rather than to one
-arbitrary configuration of it. For each step, we ran five to ten seeds for statistic analysis.
-We report normalised entropy and calibration against the matured $\Yv$ for all methods.
+arbitrary configuration of it. For each step, we ran five to ten seeds for statistical analysis.
+We report normalized entropy and calibration against mature $\Yv$ for all methods.
 
 % \paragraph{Scale and comparability.} The evidence comprises \nRunsBoth{} runs in two campaigns:
 % \nRunsThree{} runs over \nArmsThree{} arms reproducing the published methods under teacher~1, and \nRunsFour{} runs over \nArmsFour{} arms adding teacher~2, with
@@ -91,16 +87,17 @@ We report normalised entropy and calibration against the matured $\Yv$ for all m
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\textwidth]{figs/gain}
-\caption{Relative $\NE$ reduction against \textsc{Wait} as a function of served capacity.
-Columns are the join delay, (A)~$o=5$, (B)~$o=30$ and (C)~$o=90$ minutes; rows are the teacher
-the targets were distilled from, teacher 1 in $\mathrm{A}_1$--$\mathrm{C}_1$ and teacher 2
-in $\mathrm{A}_2$--$\mathrm{C}_2$. Each row is read against its own
-\textsc{Wait} runs, and the near-identical rows are the teacher-robustness result. Above
-the zero line beats the conventional per-objective pipeline. Colour denotes the target and line
-style the attribution window; \textsc{Oracle}, which labels an early record with the matured
-outcome and is therefore not causal, is drawn at $v=7$\,d to bound each panel. Shading on a
-curve is the standard deviation of the per-seed paired differences; the grey vertical band marks
-the two smallest capacities, the regime in which \textsc{Distill-Only} needs no hard label.}
+\caption{Relative $\NE$ reduction against \textsc{Wait} as a function of served capacity, for different join delay $o$, and two different teacher models.
+% Columns are the join delay, (A)~$o=5$, (B)~$o=30$ and (C)~$o=90$ minutes; rows are the teacher
+% the targets were distilled from, teacher 1 in $\mathrm{A}_1$--$\mathrm{C}_1$ and teacher 2
+% in $\mathrm{A}_2$--$\mathrm{C}_2$. Each row is read against its own
+% \textsc{Wait} runs, and the near-identical rows are the teacher-robustness result. Above
+% the zero line beats the conventional per-objective pipeline. Colour denotes the target and line
+% style the attribution window; \textsc{Oracle}, which labels an early record with the matured
+% outcome and is therefore not causal, is drawn at $v=7$\,d to bound each panel. 
+Shading on a curve is the standard deviation of the per-seed paired differences.
+% ; the grey vertical band marks the two smallest capacities
+}
 \label{fig:gain}
 \end{figure}
 
