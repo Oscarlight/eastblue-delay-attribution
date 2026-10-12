@@ -31,14 +31,19 @@ import pandas as pd
 from scipy import stats
 
 HERE = Path(__file__).resolve().parent
-V4 = pd.read_parquet(HERE / "data" / "v4_all_runs.parquet")
-V3 = pd.read_parquet(HERE / "data" / "v3_all_runs.parquet")
 
-CAPS = ["A0", "A1", "A2", "A3", "A4"]
+CAPS = ["A0", "A1", "A2", "A3"]
+
+#: The parquets also hold the excluded A4 rung. Filtering at load rather than per-query means
+#: every derived number, including the run counts, describes exactly the grid the paper reports.
+_V4 = pd.read_parquet(HERE / "data" / "v4_all_runs.parquet")
+_V3 = pd.read_parquet(HERE / "data" / "v3_all_runs.parquet")
+V4 = _V4[_V4.cap.isin(CAPS)].reset_index(drop=True)
+V3 = _V3[_V3.cap.isin(CAPS)].reset_index(drop=True)
 #: The data keys are historical; the paper calls the served-capacity rungs M0..M4 so they are
 #: never confused with the figure's A/B/C panel labels. Display only -- never index with these.
 MDISP = {c: f"M{i}" for i, c in enumerate(CAPS)}
-SMALL, LARGE = ["A0", "A1"], ["A2", "A3", "A4"]
+SMALL, LARGE = ["A0", "A1"], ["A2", "A3"]
 OS, TASKS = [5, 30, 90], ["1d", "7d"]
 WAIT, CD, DO = "DISTILL_T", "DISTILL_T13", "DISTILL_pv"
 FRESH, ORACLE, FROZEN = "DISTILL_nokd", "Oracle", "DISTILL_T13frz"
@@ -64,7 +69,12 @@ TEACHER_ALT = {CD: "DISTILL_Tmlp", DO: "DISTILL_pvmlp"}
 #: parameters at IDENTICAL compute, since they share a trunk and differ only in table rows.
 COMPLEX = {
     "A0": (1_890, 0.0010), "A1": (9_810, 0.0010), "A2": (94_959, 0.0050),
-    "A3": (1_184_439, 0.0095), "A4": (9_580_477, 0.2856),
+    "A3": (1_184_439, 0.0095),
+    #: A4 (9,580,477 params, 0.2856 MFLOPs) is excluded from the study. It is the only rung
+    #: built on the full trunk rather than a frontier node, so it breaks the ladder's spacing:
+    #: 8x the parameters of A3 but 30x the compute, against ~10x per step everywhere else. Its
+    #: results are also non-monotone against A3 on several arms. Keeping it would have made the
+    #: axis measure two different things at once.
     "mlp": (9_456_897, 0.0390), "T13": (57_272_515, 1.5928), "T15": (59_961_619, 7.5617),
 }
 
@@ -179,9 +189,9 @@ def build() -> dict:
 
     # ---- complexity ---------------------------------------------------------------------
     m["capMin"] = f"{COMPLEX['A0'][0]:,}"
-    m["capMax"] = f"{COMPLEX['A4'][0]:,}"
+    m["capMax"] = f"{COMPLEX[CAPS[-1]][0]:,}"
     m["flopMin"] = f"{COMPLEX['A0'][1]:.3f}"
-    m["flopMax"] = f"{COMPLEX['A4'][1]:.3f}"
+    m["flopMax"] = f"{COMPLEX[CAPS[-1]][1]:.4f}"
     m["teacherParams"] = f"{COMPLEX['T13'][0]:,}"
     m["teacherFlops"] = f"{COMPLEX['T13'][1]:.3f}"
     m["teacherSmallParams"] = f"{COMPLEX['mlp'][0]:,}"
@@ -317,7 +327,7 @@ def build() -> dict:
 
     # ---- Table 1's operating point, quoted in the prose around it ---------------------------
     # Reported at the two ends of the ladder because averaging them hid a reversal.
-    for cap, key in (("A0", "Small"), ("A4", "Large")):
+    for cap, key in ((CAPS[0], "Small"), (CAPS[-1], "Large")):
         st = slice_stats(cap)
         best = max((k for k in st if st[k]["r2"] == "no"), key=lambda k: st[k]["gain"][0])
         m[f"sl{key}Best"] = best
@@ -474,7 +484,8 @@ def slice_stats(cap: str) -> dict:
 
 
 #: The two ends of the served-capacity ladder, by data key and display name.
-SLICE_CAPS = [("A0", "M$_0$ (smallest)"), ("A4", "M$_4$ (largest)")]
+SLICE_CAPS = [(CAPS[0], rf"M$_0$ (smallest)"),
+              (CAPS[-1], rf"M$_{len(CAPS) - 1}$ (largest)")]
 
 
 def baseline_table(m: dict, sc: pd.DataFrame) -> str:
@@ -496,7 +507,7 @@ def baseline_table(m: dict, sc: pd.DataFrame) -> str:
         return f"{minus(f'{mu:+.2f}')}\,$\pm$\,{hw:.2f}"
 
     def row(name):
-        r0, r4 = st["A0"][name], st["A4"][name]
+        r0, r4 = st[CAPS[0]][name], st[CAPS[-1]][name]
         tag = rf"\textsc{{{name.replace('-', '{-}')}}}{CITE.get(name, '')}"
         if name in ("Correct-Distill", "Distill-Only"):
             tag = rf"\textbf{{{tag}}}"

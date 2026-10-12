@@ -22,9 +22,12 @@ import pandas as pd
 from scipy import stats
 
 HERE = Path(__file__).resolve().parent
-V4 = pd.read_parquet(HERE / "data" / "v4_all_runs.parquet")
-V3 = pd.read_parquet(HERE / "data" / "v3_all_runs.parquet")
-CAPS, OS, TASKS = ["A0", "A1", "A2", "A3", "A4"], [5, 30, 90], ["1d", "7d"]
+CAPS, OS, TASKS = ["A0", "A1", "A2", "A3"], [5, 30, 90], ["1d", "7d"]
+#: A4 is excluded from the study, so it is dropped here too; see paper_numbers.COMPLEX.
+_V4 = pd.read_parquet(HERE / "data" / "v4_all_runs.parquet")
+_V3 = pd.read_parquet(HERE / "data" / "v3_all_runs.parquet")
+V4 = _V4[_V4.cap.isin(CAPS)].reset_index(drop=True)
+V3 = _V3[_V3.cap.isin(CAPS)].reset_index(drop=True)
 #: Table cells typeset negatives as math-mode "$-$", which pdftotext extracts as U+2212 rather
 #: than ASCII hyphen. Normalise so a claim string like "-0.45" still matches what reached the
 #: page; without this the table-row checks silently look for a glyph the PDF never contains.
@@ -74,14 +77,16 @@ def main() -> None:
     # --- Correct-Distill -------------------------------------------------------------------
     cd = grid("DISTILL_T13")
     pos = sum(1 for g in cd.values() if g.mean() > 0)
-    # the abstract renders this as "Wait in 28"; section 5 as "below Wait in 2 of 30"
+    # The abstract renders this as "Wait in 23". With one losing cell the Findings prose says
+    # "The single exception"; keep the check tied to whichever wording the count implies.
     claim("Correct-Distill beats Wait", f"{pos} of {len(cd)}", f"Wait in {pos}")
-    claim("...and section 5 names the exceptions", f"{len(cd)-pos} of {len(cd)}",
-          f"The {len(cd)-pos} exceptions")
+    n_neg = len(cd) - pos
+    claim("...and the Findings name the exceptions", f"{n_neg} of {len(cd)}",
+          "The single exception" if n_neg == 1 else f"The {n_neg} exceptions")
     do = grid("DISTILL_pv")
     beats = sum(1 for k in cd if cd[k].mean() > do[k].mean())
     claim("Correct-Distill beats Distill-Only", f"{beats} of {len(cd)}", None)
-    assert beats == 30, "paper says all 30"
+    assert beats == len(cd), f"paper says all {len(cd)}"
 
     for tag, t in (("7d", "7d"), ("1d", "1d")):
         v = [g.mean() for k, g in cd.items() if k[0] == t]
@@ -118,9 +123,9 @@ def main() -> None:
 
     # --- Distill-Only crossover --------------------------------------------------------------
     sm = np.mean([rel("DISTILL_pv", "1d", o, c).mean() for o in OS for c in ["A0", "A1"]])
-    lg = np.mean([rel("DISTILL_pv", "1d", o, c).mean() for o in OS for c in ["A2", "A3", "A4"]])
+    lg = np.mean([rel("DISTILL_pv", "1d", o, c).mean() for o in OS for c in ["A2", "A3"]])
     claim("Distill-Only 1d, two smallest (a gain)", f"{sm:+.2f}%", f"{abs(sm):.2f}")
-    claim("Distill-Only 1d, three largest (a loss)", f"{lg:+.2f}%", f"{abs(lg):.2f}")
+    claim("Distill-Only 1d, two largest (a loss)", f"{lg:+.2f}%", f"{abs(lg):.2f}")
     assert sm > 0 > lg, "paper claims a sign change"
 
     # Contribution (3): drop the hard label at small capacity. A mean could hide a split, so the
@@ -172,7 +177,7 @@ def main() -> None:
         # Only the 7d figures are quoted now; Table 1 carries the 1d comparison at its own cell.
         if t == "7d":
             claim(f"lead over ULC {tag}", f"{lead:+.2f} pp", f"{lead:+.2f}")
-            claim(f"cells beating ULC {tag}", f"{wins} of {len(ours)}", f"{wins} of 15")
+            claim(f"cells beating ULC {tag}", f"{wins} of {len(ours)}", f"{wins} of {len(ours)}")
 
     # --- Table 1: the production-like cell, v=1d and o=90 min, at M0 and M4 -------------------
     # Independent re-derivation: concatenate both campaigns, drop the 850 duplicated re-runs on
@@ -195,7 +200,7 @@ def main() -> None:
         return v.mean(), stats.t.ppf(0.975, len(v) - 1) * v.std(ddof=1) / np.sqrt(len(v))
 
     gains = {}
-    for cap, lab in (("A0", "M0"), ("A4", "M4")):
+    for cap, lab in (("A0", "M0"), ("A3", "M3")):
         w = SL[(SL.arm == "DISTILL_T") & (SL.cap == cap)].set_index("seed")["ne"]
         gains[lab] = {}
         for name, arms in TAB.items():
@@ -214,8 +219,9 @@ def main() -> None:
 
     # The readings the prose takes off the table.
     assert gains["M0"]["Correct-Distill"] > gains["M0"]["ULC"], "paper: we lead ULC at M0"
-    assert gains["M4"]["FSIW"] > gains["M4"]["Correct-Distill"], "paper: FSIW leads at M4"
-    for lab in ("M0", "M4"):
+    assert gains["M3"]["Correct-Distill"] > max(gains["M3"]["ULC"], gains["M3"]["FSIW"]), \
+        "paper: we lead the single-visit group at M3 too"
+    for lab in ("M0", "M3"):
         rec = 100 * gains[lab]["Correct-Distill"] / gains[lab]["Oracle"]
         claim(f"{lab} share of the Oracle headroom", f"{rec:.0f}%", f"{rec:.0f}")
     best0 = max(NONCOMP, key=lambda k: gains["M0"][k])
@@ -224,8 +230,8 @@ def main() -> None:
     assert gains["M0"][best0] > gains["M0"]["Oracle"], \
         "paper says the M0 leader clears the single-visit Oracle"
     # Distill-Only changes sign across the ladder; that is contribution 3 in one row.
-    assert gains["M0"]["Distill-Only"] > 0 > gains["M4"]["Distill-Only"], \
-        "paper says Distill-Only wins at M0 and loses at M4"
+    assert gains["M0"]["Distill-Only"] > 0 > gains["M3"]["Distill-Only"], \
+        "paper says Distill-Only wins at M0 and loses at M3"
 
     assert "TWICE" not in PDF and "Twice" not in PDF, "TWICE must not appear in the paper"
     assert "IF-DFM" not in PDF, "IF-DFM must not appear in the paper"

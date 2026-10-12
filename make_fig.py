@@ -41,8 +41,9 @@ import pandas as pd                      # noqa: E402
 from matplotlib.lines import Line2D      # noqa: E402
 
 HERE = Path(__file__).resolve().parent
-CAPS = ["A0", "A1", "A2", "A3", "A4"]
-PARAMS = {"A0": 1_890, "A1": 9_810, "A2": 94_959, "A3": 1_184_439, "A4": 9_580_477}
+CAPS = ["A0", "A1", "A2", "A3"]
+#: A4 is excluded from the study; see the note in paper_numbers.COMPLEX.
+PARAMS = {"A0": 1_890, "A1": 9_810, "A2": 94_959, "A3": 1_184_439}
 OS = [5, 30, 90]
 WAIT = "DISTILL_T"                        # teacher-as-predictor: trains only on closed windows
 
@@ -146,6 +147,10 @@ def main() -> None:
         # Row identity on the right edge, where it cannot collide with the y-label.
         axes[r, 2].text(1.04, 0.5, rowlab, transform=axes[r, 2].transAxes, rotation=270,
                         fontsize=7.5, color=INK, va="center", ha="left")
+
+    # Integer ticks: matplotlib's default picks only 0 and 2 on this range, which leaves the
+    # negative region unlabelled and makes the crossover hard to read off.
+    axes[0, 0].set_yticks([-1, 0, 1, 2, 3])
 
     # Headroom so the Oracle band never touches the top spine.
     lo, hi = axes[0, 0].get_ylim()
