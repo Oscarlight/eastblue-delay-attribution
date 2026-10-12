@@ -60,7 +60,7 @@ def paired(d, arm, o, task):
 
 def main() -> None:
     d = pd.read_parquet(HERE / "data" / "v4_all_runs.parquet")
-    fig, axes = plt.subplots(1, 3, figsize=(6.6, 1.88), sharey=True)
+    fig, axes = plt.subplots(1, 3, figsize=(6.4, 1.72), sharey=True)
     for ax, o in zip(axes, OS):
         ax.axhline(0, color=INK, lw=1.0, zorder=2)
         for arm, task, lab, col, ls, mk in SERIES:

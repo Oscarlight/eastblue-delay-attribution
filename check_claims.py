@@ -47,6 +47,14 @@ def rel(arm, t, o, c, base="DISTILL_T"):
     return 100.0 * (w[s] - a[s]) / w[s]
 
 
+def _rel3(arm, t, o, c):
+    """Per-cell mean relative gain over Wait, computed inside the v3 table."""
+    a = V3[(V3.arm == arm) & (V3.task == t) & (V3.o_min == o) & (V3.cap == c)].set_index("seed")["ne"]
+    w = V3[(V3.arm == "DISTILL_T") & (V3.task == t) & (V3.o_min == o) & (V3.cap == c)].set_index("seed")["ne"]
+    sx = a.index.intersection(w.index)
+    return None if len(sx) < 2 else float((100.0 * (w[sx] - a[sx]) / w[sx]).mean())
+
+
 def grid(arm, t=None):
     return {(tt, o, c): rel(arm, tt, o, c)
             for tt in ([t] if t else TASKS) for o in OS for c in CAPS}
@@ -137,7 +145,32 @@ def main() -> None:
             u = V3[(V3.arm == "ULC") & (V3.task == "1d") & (V3.o_min == o) & (V3.cap == c)].set_index("seed")["ne"]
             s = a.index.intersection(u.index)
             diff.append(float((u[s] - a[s]).mean()))
-    claim("Correct-Distill vs ULC (v3)", f"{np.mean(diff):+.5f} NE", f"{np.mean(diff):+.5f}")
+    # The paper no longer quotes the absolute NE difference; it reports the pp lead and the
+    # per-cell win counts, so those are what must be checked.
+    V3G = lambda arm, t: [x for o in OS for c in CAPS
+                          if (x := _rel3(arm, t, o, c)) is not None]
+    for tag, t in (("7d", "7d"), ("1d", "1d")):
+        ours = [g.mean() for g in grid("DISTILL_T13", t).values()]
+        ulc = V3G("ULC", t)
+        lead = np.mean(ours) - np.mean(ulc)
+        wins = sum(a > b for a, b in zip(ours, ulc))
+        if t == "7d":
+            claim(f"lead over ULC {tag}", f"{lead:+.2f} pp", f"{lead:+.2f}")
+            claim(f"cells beating ULC {tag}", f"{wins} of {len(ours)}", f"{wins} of 15")
+        else:
+            claim(f"cells beating ULC {tag}", f"{wins} of {len(ours)}", f"{wins} of 15")
+
+    # --- the price of single-visit, and the baseline table --------------------------------------
+    NONCOMP = ["DFM", "ES-DFM", "DEFUSE", "DDFM", "FTP", "MISS", "PI"]
+    for tag, t in (("7d", "7d"), ("1d", "1d")):
+        best = max(NONCOMP, key=lambda a: np.mean(V3G(a, t)))
+        price = np.mean(V3G(best, t)) - np.mean([g.mean() for g in grid("DISTILL_T13", t).values()])
+        claim(f"price of single-visit {tag} (vs {best})", f"{price:.2f} pp", f"{price:.2f}")
+        assert price > 0, "paper says the non-compliant method is ahead"
+    for arm, key in (("FSIW", "Fsiw"), ("ULC", "Ulc"), ("TWICE", "Twice")):
+        v = np.mean(V3G(arm, "7d"))
+        claim(f"table row {arm} 7d", f"{v:+.2f}%", f"{v:+.2f}")
+    claim("combined run count", f"{len(V3) + len(V4):,}", f"{len(V3) + len(V4):,}")
 
     print(f"\n{sum(OK)}/{len(OK)} claims reproduce and appear in the PDF")
     if not all(OK):

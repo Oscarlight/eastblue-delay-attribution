@@ -28,9 +28,9 @@ is the cost of the alternative, and no label accuracy compensates for training o
 
 Both ends of the interval are measured. \textsc{Oracle}, writing at $o$ but labelling the record
 $\Yv$, gains \oracleSevenAbs{}\% and \oracleOneAbs{}\%, so \textsc{Correct-Distill} recovers
-\recoverSeven{}\% and \recoverOne{}\% of what any causal correction could; \textsc{Fresh}, the
-same join uncorrected, loses \freshSevenAbs{}\% and \freshOneAbs{}\%. The gap the teacher fills is an
-order of magnitude larger than the gains above.
+\recoverSeven{}\% and \recoverOne{}\% of what any causal correction could. \textsc{Fresh}, the
+same join uncorrected, loses \freshSevenAbs{}\% and \freshOneAbs{}\%: the gap the teacher fills
+is an order of magnitude larger than the gains above.
 
 \paragraph{The condition: keep part of the hard label.}
 The collapse above used the hybrid target; the fully soft one decides how far the result can be
@@ -49,21 +49,34 @@ join at the fast window is where the teacher has least to add, \foOneFive{} of t
 being already visible.
 
 \paragraph{The teacher need not be large, costly or live.}
-Substituting a \teacherSmallParams{}-parameter teacher for the \teacherParams{}-parameter one, a
-\teacherRatio{}$\times$ parameter and \teacherFlopRatio{}$\times$ compute step, moves the gain by
-\teachCdMean{}\,pp for \textsc{Correct-Distill} and \teachDoMean{}\,pp for
-\textsc{Distill-Only} over \nCellsBoth{} cells. Holding parameters fixed and spending
-\wideFlopRatio{}$\times$ more teacher compute is equally inert (\wideSevenAbs{}\% against
-\baseSevenThirtyAbs{}\% at seven days). The teacher's rate is verified, not inherited: the default
-beats a 10$\times$ smaller one everywhere (\lrLowSevenAbs{}\%) and ties a 2$\times$ larger one
-(\lrHighSevenAbs{}\%), so the null is a saturated teacher rather than an untuned one. Freezing it
-after causal initialisation costs \frzCostOneAbs{} and \frzCostSevenAbs{}\,pp, and the frozen arm
-still beats \textsc{Wait} in \frzBeat{} of \frzN{} cells: a shipped model suffices.
+Dropping to a \teacherSmallParams{}-parameter teacher --- a \teacherRatio{}$\times$ parameter
+and \teacherFlopRatio{}$\times$ compute step --- moves the gain by \teachCdMean{}\,pp for
+\textsc{Correct-Distill} and \teachDoMean{}\,pp for \textsc{Distill-Only} over \nCellsBoth{}
+cells, and holding parameters fixed while spending \wideFlopRatio{}$\times$ more teacher compute
+is equally inert. The rate is verified rather than inherited: the default beats a 10$\times$
+smaller one everywhere and ties a 2$\times$ larger one, so the null is a saturated teacher, not
+an untuned one. Freezing after causal initialisation costs \frzCostOneAbs{} and
+\frzCostSevenAbs{}\,pp, and the frozen arm still beats \textsc{Wait} in \frzBeat{} of
+\frzN{} cells: a shipped model suffices.
 
-\textsc{Correct-Distill} and \textsc{Ulc}~\cite{wang2023unbiased} share
-Eq.~\eqref{eq:hybrid} and differ only in how the corrector is estimated; on the matched grid they
-are near-indistinguishable (mean $\NE$ difference \cdUlcMean{}, \cdUlcNs{} of \cdUlcN{} cells not
-significant at $v=1$\,d). The offline teacher does not beat the online corrector on accuracy; the
-case for it is architectural (Sect.~\ref{sec:consolidation}). Relaxing Rule~2, by letting the teacher read the
-fresh stream at 2.08 visits per click, gains \hybOneAbs{}\% at one day against \baseOneThirtyAbs{}\%
-and nothing at seven, so single-visit is near-free on the slow funnel.
+\paragraph{Against the published methods, and the price of the rule.}
+The screen of Sect.~\ref{sec:setting} says which methods \emph{could} run on an append-only
+stream; Table~\ref{tab:baselines} says how they \emph{perform} on it.
+
+\begin{table}[t]
+\centering
+\caption{Mean $\NE$ gain over \textsc{Wait} (\%) across the \nCells{} cells of each window.}
+\label{tab:baselines}
+\input{generated/tab_baselines}
+\end{table}
+
+Two things follow. \textbf{The rule is cheap}: only \textsc{\bestNonSeven} beats us, and it
+writes \vanillaDup{} records per click to do so, for \priceSeven{}\,pp at seven days and
+\priceOne{}\,pp at one. \textbf{Among methods that can actually run, ours is the strongest.}
+\textsc{Ulc}~\cite{wang2023unbiased} shares Eq.~\eqref{eq:hybrid} and differs only in how the
+corrector is estimated; we lead it by \ourUlcSeven{}\,pp at seven days (\ourUlcWinSeven{} of
+\nCells{} cells) and are level at one (\ourUlcWinOne{} of \nCells{}). The case for an offline
+teacher over an online corrector is therefore architectural rather than one of accuracy
+(Sect.~\ref{sec:consolidation}). \textsc{Twice} does not reproduce competitively here; we
+report it for completeness and make no claim about its published standing, its mechanism
+behaving as described but its floor sitting well above every other method's in our harness.

@@ -9,14 +9,14 @@ removes the dilemma: one stream at a single short $o$ can carry $\tilde y_{i,k} 
 at once, because $\wt_k$ is a function the pipeline calls rather than an outcome it awaits ---
 and doing so is an improvement, most of all for the slow objectives that forced the segregation.
 
-\textsc{Ulc} evaluates at write time too and reaches the same accuracy, so the choice is
-architectural: it fits each $w_k$ inside the served model's training loop, turning $K$ objectives
-into $K$ auxiliaries on one optimiser, whereas a teacher puts each $w_k$ upstream with a number
-on a record as its only interface. Sect.~\ref{sec:results} says what that upstream model must
-be --- not large, not costly, not live --- so consolidation adds $K$ build-time artifacts rather
-than $K$ services. That is the regime in which a shared cross-objective foundation model is
-attractive: not because it is big, but because it already exists, already sees matured outcomes
-for every objective, and can be evaluated once per record and then forgotten.
+\textsc{Ulc} is the closest alternative, so the choice is architectural: it fits each $w_k$
+inside the served model's training loop, turning $K$ objectives into $K$ auxiliaries on one
+optimiser, whereas a teacher puts each $w_k$ upstream with a number on a record as its only
+interface. Sect.~\ref{sec:results} says what that upstream model must be --- not large, not
+costly, not live --- so consolidation adds $K$ build-time artifacts rather than $K$ services.
+That is the regime in which a shared cross-objective foundation model is attractive: not because
+it is big, but because it already exists, already sees matured outcomes for every objective, and
+can be evaluated once per record and then forgotten.
 
 \paragraph{What this does not establish.} We ran one objective at a time, so there is no
 evidence on interference between objectives sharing a trunk --- the central risk, and what a

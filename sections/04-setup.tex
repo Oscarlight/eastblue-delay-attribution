@@ -14,8 +14,15 @@ slow funnel; the contrast between them is the paper's point, so we never average
 Three \emph{join delays}, $o\in\{5,30,90\}$ minutes. Five \emph{served capacities} from
 \capMin{} to \capMax{} parameters and \flopMin{}--\flopMax{} MFLOPs per inference --- the two do
 not track, the smallest rungs differing 5.2$\times$ in parameters at identical compute, so we
-report both. \seedsCore{} seeds on the three targets and \seedsOther{} elsewhere: \nRunsFour{}
-runs over \nArmsFour{} arms, alongside the \nRunsThree{}-run screen of Sect.~\ref{sec:setting}.
+report both. \seedsCore{} seeds on the three targets and \seedsOther{} elsewhere.
+
+\paragraph{Two campaigns, one axis.} The evidence is \nRunsBoth{} runs: \nRunsThree{} over
+\nArmsThree{} arms reproducing the published methods, and \nRunsFour{} over \nArmsFour{} arms
+studying the three targets at the larger teacher. The second uses a frozen copy of the first's
+harness, and \textsc{Wait} --- which instantiates no teacher, so nothing the second campaign
+changed can reach it --- reproduces the first to zero difference across all 150 shared cells.
+Reporting every arm against \textsc{Wait} within its own run is what puts both campaigns on one
+axis, rather than an assumption that two runs are comparable.
 
 \paragraph{Metric and statistics.} Normalised entropy against $\Yv$, lower better, pooled over
 all scored clicks rather than averaged over rounds --- a per-round average normalises each hour

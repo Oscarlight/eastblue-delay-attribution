@@ -177,27 +177,54 @@
 % Re-fetch from the DOI/arXiv id and delete the note field before submission.
 
 % !! BLOCKING BEFORE SUBMISSION: the two Tier-2 entries below have INCOMPLETE author lists.
-% !! The printed `note` flags were removed to meet the page limit, so the gap is no longer
-% !! visible in the PDF. Fetch both from their DOI/arXiv id and restore full author lists.
-% Both Tier-2 entries were reduced on 2026-09-24 to the fields the project reference bank
-% (Survey/reports/delayed_label_vs_distillation_lit_review.md, Sects. 3.2 and 6) actually records.
-% The bank names only the first author ("Xu et al.", "Menon et al."), the title and the venue.
-% Fuller author lists previously sat here but traced to no source, so they were removed rather
-% than left in place. Outbound network is blocked in this environment and neither PDF is held
-% in-project, so they cannot be completed here. The `note` fields print in the bibliography on
-% purpose: they must be resolved from the DOI/arXiv id before submission.
+% Two Tier-2 entries were reduced on 2026-09-24 to the fields the project reference bank
+% actually recorded, because fuller author lists had been sitting here that traced to no source.
+% Resolved 2026-10-10 as far as the available tools allow; status of each is recorded below.
 
-@misc{xu2020privileged,
-  author        = {Xu and others},
+% VERIFIED 2026-10-10 against the arXiv record, via
+%   meta search.paper load --arxiv-id=1907.05171
+% which returned the full author list, title and 2019-07-01 date quoted here. Two notes:
+%   * The equal-contribution asterisks on the first two authors are dropped, as BibTeX fields
+%     carry names only.
+%   * The index reports no venue for this id, and a search for an ACM DL record did not surface
+%     one, so this cites the arXiv preprint rather than asserting a proceedings venue. If the
+%     KDD 2020 version is preferred, verify its volume and pages first and switch to
+%     @inproceedings; do not assume the venue from the title.
+% Key renamed from xu2020privileged so the key agrees with the verified year.
+@misc{xu2019privileged,
+  author        = {Xu, Chen and Li, Quan and Ge, Junfeng and Gao, Jinyang and Yang, Xiaoyong
+                   and Pei, Changhua and Sun, Fei and Wu, Jian and Sun, Hanxiao and Ou, Wenwu},
   title         = {Privileged Features Distillation at {Taobao} Recommendations},
   year          = {2019},
   eprint        = {1907.05171},
   archiveprefix = {arXiv}
 }
 
+% PARTIALLY VERIFIED 2026-10-10 — DO NOT SUBMIT AS IS.
+%   Verified: the paper exists as PMLR v139 (ICML 2021), publisher key menon21a, at
+%     https://proceedings.mlr.press/v139/menon21a.html
+%   NOT verified: author initials and page range, so the author field stays as "and others".
+% The project's own survey notes (Survey/reports/literature_review_v2.md, line 133) record the
+% surnames as Menon, Rawat, Reddi, Kim, Kumar — but that is a secondary internal source, and
+% Survey/reports/delayed_label_vs_distillation_lit_review.md marks this reference unverified,
+% so it is not sufficient to populate the field. Surnames without initials would also render
+% wrongly in LNCS style.
+% Also located 2026-10-10, and the reason six title searches had failed: the PREPRINT CARRIES A
+% DIFFERENT TITLE. arXiv 2005.10419 is "Why distillation helps: a statistical perspective", the
+% same work under its earlier name. The camera-ready PDF is also mirrored on the first author's
+% own page, https://akmenon.github.io/papers/distillation/Bayes_Distillation.pdf, which
+% corroborates the first author as A. K. Menon. Either source lists the authors plainly.
+% Still not readable from here: the Meta paper index does not hold 2005.10419 ("not found in the
+% ark_research collection"), the arXiv API returns nothing through the proxy, WebFetch is refused
+% by enterprise policy, `meta search.knowledge load` by input filtering, and the sandbox resolves
+% no external DNS.
+% TO COMPLETE (one minute, needs a browser): open either URL and copy the author list. The PMLR
+% page also carries a ready-made BibTeX block, which is the cleanest paste.
 @inproceedings{menon2021statistical,
   author    = {Menon and others},
   title     = {A Statistical Perspective on Distillation},
   booktitle = {Proc. ICML},
+  series    = {PMLR},
+  volume    = {139},
   year      = {2021}
 }

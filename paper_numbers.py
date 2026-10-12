@@ -272,6 +272,30 @@ def build() -> dict:
               "lrHighOne", "lrHighSeven"):
         m[k + "Abs"] = m[k].lstrip("+-")
 
+    # ---- published baselines, from v3, on the same scale --------------------------------------
+    # v3 and v4 are directly comparable: v4's harness is a frozen copy of v3's, and the Wait arm
+    # -- which instantiates no teacher and so cannot be touched by anything v4 changed --
+    # reproduces v3 to zero delta across 150 cells under both source revisions. Every arm is
+    # read as a gain against Wait WITHIN its own run, so the shared, bit-identical baseline is
+    # what puts the two on one axis.
+    NONCOMP = ["DFM", "ES-DFM", "DEFUSE", "DDFM", "FTP", "MISS", "PI"]
+    for tag, task in (("One", "1d"), ("Seven", "7d")):
+        best = max(NONCOMP, key=lambda a: np.mean([g.mean() for g in cells(V3, a, task).values()]))
+        bn = np.mean([g.mean() for g in cells(V3, best, task).values()])
+        ours = mean_of(V4, CD, task)
+        ulc = np.mean([g.mean() for g in cells(V3, "ULC", task).values()])
+        m[f"bestNon{tag}"] = best
+        m[f"bestNon{tag}Gain"] = f"{bn:+.2f}"
+        m[f"price{tag}"] = f"{bn - ours:.2f}"
+        m[f"ulc{tag}"] = f"{ulc:+.2f}"
+        m[f"ourUlc{tag}"] = f"{ours - ulc:+.2f}"
+        m[f"ourUlcWin{tag}"] = str(sum(
+            1 for k, gg in cells(V4, CD, task).items()
+            if (u := cells(V3, "ULC", task).get(k)) is not None and gg.mean() > u.mean()))
+        for arm, key in (("FSIW", "fsiw"), ("TWICE", "twice")):
+            m[f"{key}{tag}"] = f"{np.mean([g.mean() for g in cells(V3, arm, task).values()]):+.2f}"
+    m["nRunsBoth"] = f"{len(V3) + len(V4):,}"
+
     bad = [k for k in m if not k.isalpha()]
     if bad:
         raise SystemExit(f"macro names must be letters only (a digit ends the name): {bad}")
@@ -285,6 +309,23 @@ def write_tex(m: dict) -> None:
         "".join(f"\\newcommand{{\\{k}}}{{{v}}}\n" for k, v in m.items()))
     sc = screen()
     fail = sc[~sc["pass"]].sort_values("dup", ascending=False)
+    # Records-per-click is deliberately NOT a column here: Sect. 2 already lists it for all 11
+    # methods, and repeating it would cost a column to say nothing new.
+    rows = [
+        # Named without a citation, as the screen list in Sect. 2 names all 11 the same way; the
+        # bibliography carries only the entries the prose actually cites.
+        (rf"\textsc{{{m['bestNonSeven']}}}", "no", m["bestNonOneGain"], m["bestNonSevenGain"]),
+        (r"\textsc{Fsiw}~\cite{yasui2020feedback}", "yes", m["fsiwOne"], m["fsiwSeven"]),
+        (r"\textsc{Twice}", "yes", m["twiceOne"], m["twiceSeven"]),
+        (r"\textsc{Ulc}~\cite{wang2023unbiased}", "yes", m["ulcOne"], m["ulcSeven"]),
+        (r"\textbf{\textsc{Correct-Distill} (ours)}", r"\textbf{yes}",
+         rf"\textbf{{{m['cdOneMean']}}}", rf"\textbf{{{m['cdSevenMean']}}}"),
+    ]
+    (out / "tab_baselines.tex").write_text(
+        "\\begin{tabular}{@{}lcrr@{}}\n\\toprule\n"
+        "Method & Single-visit & $v{=}1$\\,d & $v{=}7$\\,d \\\\\n\\midrule\n"
+        + "".join(f"{a} & {b} & {c} & {d} \\\\\n" for a, b, c, d in rows)
+        + "\\bottomrule\n\\end{tabular}\n")
     (out / "screen_inline.tex").write_text(
         ", ".join(rf"\textsc{{{r.arm.replace('-', '{-}')}}}~{r.dup:.2f}"
                   for r in fail.itertuples()) + "\n")

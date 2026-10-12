@@ -26,12 +26,12 @@ constraint and measure who obeys it: of \nScreened{} published methods reproduce
 protocol, \nFail{} write more than one record per distinct click, up to \maxDup{}
 (Sect.~\ref{sec:setting}).
 
-What is left is a choice of target. If the record must be written at $o$ and carry one frozen
-number, the gap between what is observed and what the objective means has to be closed at write
-time by an estimate. In production that estimate is naturally supplied by a large model trained
-across objectives on matured outcomes --- a foundation model such as GEM~\cite{meta2025gem} ---
-attractive precisely because it already exists and is not refitted per objective. Here we stand
-in for it with a \teacherParams{}-parameter training-only teacher, and compare three targets
-across five served capacities, three join delays and two attribution windows. The correction
+What is left is a choice of target. If the record carries one frozen number, the gap between
+what is observed and what the objective means must be closed at write time by an estimate --- in
+production by a large model trained across objectives on matured outcomes, a foundation model
+such as GEM~\cite{meta2025gem}, attractive because it already exists and is not refitted per
+objective. Here we stand in for it with a \teacherParams{}-parameter training-only teacher and
+compare three targets across five served capacities, three join delays and two attribution
+windows. The correction
 works, the gain grows as the funnel slows, it needs no larger teacher --- and it is conditional
 on the record keeping part of its hard label.
