@@ -1,22 +1,22 @@
 \section{Introduction}
 \label{sec:intro}
 
-Advertising systems predict several kinds of conversion at once, and those kinds differ sharply
-in how long they take to observe. A view or an add-to-cart is recorded within minutes of the
+Advertising systems predict several types of conversion at once, and those types differ sharply
+in how long they take to observe. A website view or an add-to-cart is recorded within minutes of the
 click; a purchase, an app install or a submitted lead may take a day or a week. Each objective
 is defined with an \emph{attribution window}, the elapsed time within which a conversion is
 credited to the click, and a production system maintains several windows at once.
 Conventionally that window also determines the \emph{join delay}, the age at which the click's
 training record is written to the stream: the pipeline waits until the label is knowable, then
-emits the record. The convention costs twice. A model for a slow objective trains only on data
-at least a window old, so it never sees recent behaviour. And a system that ranks several
+emits the record. This conversion has two disadvantages: A model for a slow objective trains only on data
+at least an attribution window old, so it never sees fresh data during online training. And a system that ranks several
 objectives jointly must either maintain one pipeline per objective or delay all of them until
 the slowest window closes, imposing the staleness of the slowest funnel on the fastest.
 
-Neither cost is intrinsic. The attribution window is fixed by the business definition of a
-conversion; the join delay is a pipeline choice. We ask what happens when the two are set
+Neither those two disadvantages are intrinsic to conversion modeling. The attribution window is fixed by the business definition of a
+conversion; but the join delay is a pipeline choice. We ask what happens when the two are set
 independently, and specifically whether an objective accountable to a seven-day window can be
-trained from records joined within 90 minutes.
+trained from records joined within minutes.
 
 The obstacle is that an early record is wrong in a known direction: every conversion still in
 flight when the record is written is recorded as a negative. A substantial literature corrects
@@ -26,18 +26,15 @@ but most corrections revise the record afterwards, by duplicating the click when
 lands, by relabelling it, or by adding prediction heads at further horizons. A streaming
 pipeline that appends each record once and trains on it once can do none of these. We state
 that restriction as a \emph{single-visit} constraint and measure which published methods satisfy
-it. What then remains is a choice of what the single frozen target should contain, and the
-deficit must be filled at write time by an estimate from a model that has seen matured outcomes.
-Such a model is readily available in production, where large ranking models are already trained
-across objectives on fully matured data~\cite{meta2025gem}.
+it.
 
-The contributions of this work are: (1) a separation of the join delay from the attribution
+Our idea is this censoring bias can be mitigated by the prediction from a model that has seen trained on the matured outcomes in the conventional way, i.e. \emph{a teacher model}.
+Such a teacher model is often readily available in production, where large ranking models are already trained
+across objectives on fully matured data~\cite{meta2025gem}. The contributions of this work are: (1) a separation of the join delay from the attribution
 window, with the causality and single-visit rules a deployable pipeline must satisfy, and an
 audit of \nScreened{} published methods against them, of which \nFail{} violate single-visit by
 writing up to \maxDup{} records per click; (2) evidence that writing the record early and
-softening only its observed negatives beats waiting for the matured label, by more as the funnel
+replacing only its observed negatives with teacher model predictions beats waiting for the matured label, by more as the funnel
 slows, and is the strongest target obeying the single-visit rule; (3) the finding that at small
-served capacities the hard label can be dropped altogether, since a target consisting only of
-the teacher's estimate beats waiting in all \doSmallBeat{} of \doSmallN{} such cells, by
-\doOneSmallAbs{}\% at one day and \doSevenSmallAbs{}\% at seven, which gives retrieval and other
-small-model stages a simpler option that carries no observed label at all.
+served capacities the hard label can be dropped altogether, since a training pipeline consisting only of
+the teacher's estimations as labels can beat the conventional training pipeline with delayed join same as attribution windows, which can benefit early stage, such as retrieval, where model complexity is low.

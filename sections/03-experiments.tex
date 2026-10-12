@@ -10,76 +10,75 @@
 % \footnotetext{Harness, configurations and per-run outputs: \url{...}}
 
 \paragraph{Data and protocol.} We use the public Criteo conversion logs released
-with~\cite{chapelle2014modeling}, the only large public advertising corpus carrying per-click
-conversion timestamps. Clicks span 60 days. Days $[0,30)$ initialise the model causally and days
+with~\cite{chapelle2014modeling}. Clicks span 60 days. Days $[0,30)$ initialise the model causally and days
 $[30,60)$ form the streaming period, divided into \nCohorts{} hourly rounds yielding \nEval{}
 scored clicks at a base conversion rate of \baseRate{}. Learning rates are selected per arm and
 per cell from a seven-point grid on a held-out slice of the initialisation period, before any
 streaming evaluation, then pinned across seeds. The teacher's rate is fixed and decoupled from
-the student's, so the student's sweep tunes one model rather than two.
+the student's.
 
-\paragraph{Model architecture.} Every arm drives the same production-shaped backbone, so a
-method never sees a different model from its comparators. The eight integer fields enter a dense
+\paragraph{Model architecture.} In the model arch backbone, the eight integer fields enter a dense
 arm as $\log(1+x)$ paired with an observed-mask bit, normalised and passed through a two-layer
 perceptron to a projection vector. The nine categorical fields are hashed per field and
 embedded, one identifier per field, giving a token per field. Tokens and the dense projection
 % TODO before submission: cite the Wukong paper here. It is not yet in refs.bib and the
 % authoring host has no network, so the layer is named without a citation for now, consistent
 % with how Sect. 2 names the screened methods.
-are then consumed by a stack of Wukong interaction layers, each of which
-takes a token set and returns a token set of the same width so layers compose, combining a
-factorisation-machine block for explicit pairwise interaction with a linear compression block
-carried as a residual. The final token set is flattened to a single logit. Auxiliary networks
-that a baseline needs, such as a delay head or an importance-weight classifier, are held at a
-fixed size and never scaled with the served model, so the capacity axis measures the served
-model alone.
+are then consumed by a stack of Wukong interaction layers.
+% , each of which
+% takes a token set and returns a token set of the same width so layers compose, combining a
+% factorisation-machine block for explicit pairwise interaction with a linear compression block
+% carried as a residual. 
+The final token set is flattened to a single logit for final output.
 
-\paragraph{Scaling the served model.} The five rungs $\mathrm{M}_0$ to $\mathrm{M}_4$ move three
+\paragraph{Scaling complexity of the served model.} The five rungs $\mathrm{M}_0$ to $\mathrm{M}_4$ move three
 dials together rather than one: the interaction trunk is taken from successive rungs of a
 compute-efficient frontier, the hash width per categorical field grows $36 \to 256 \to 1{,}280
 \to 16{,}384 \to 131{,}072$, and the embedding dimension widens $4 \to 4 \to 8 \to 8 \to 8$.
-Scaling only table rows against a fixed trunk would make the axis a feature-resolution axis
-rather than a capacity one, since on this corpus the trunk dominates the parameter count until
-the tables are large. The result is roughly an order of magnitude per step, \capMin{} to
-\capMax{} parameters and \flopMin{} to \flopMax{} MFLOPs per inference. Parameters and compute
-do not track each other: $\mathrm{M}_0$ and $\mathrm{M}_1$ differ 5.2-fold in parameters at
-identical compute because they share a trunk rung and differ only in table rows. We therefore
-report both rather than let one stand for the other.
+% Scaling only table rows against a fixed trunk would make the axis a feature-resolution axis
+% rather than a capacity one, since on this corpus the trunk dominates the parameter count until
+% the tables are large. 
+The result is roughly an order of magnitude per step, \capMin{} to
+\capMax{} parameters and \flopMin{} to \flopMax{} MFLOPs per inference. 
+% Parameters and compute do not track each other: $\mathrm{M}_0$ and $\mathrm{M}_1$ differ 5.2-fold in parameters at
+% identical compute because they share a trunk rung and differ only in table rows. We therefore
+% report both rather than let one stand for the other.
 
-\paragraph{Axes.} Two attribution windows, $v=1$\,d and $v=7$\,d, stand for a fast and a slow
-funnel; the contrast between them is the paper's point, so we never average across them. Three
-join delays are used, $o\in\{5,30,90\}$ minutes, crossed with the five served capacities. The
-fourth axis is the teacher, for which we study two architectures. \emph{Teacher 1} places
+\paragraph{Different setups and metric.} Two attribution windows ($v\in\{1, 7\}$ days), three
+join delays ($o\in\{5,30,90\}$ minutes), serving models with five different complexities ($\mathrm{M}_0$ to $\mathrm{M}_4$), and two different teacher models are used. For the five different complexities, the hash width per categorical field grows $36 \to 256 \to 1{,}280
+\to 16{,}384 \to 131{,}072$, and the embedding dimension widens $4 \to 4 \to 8 \to 8 \to 8$. The result is roughly an order of magnitude per step, \capMin{} to \capMax{} parameters and \flopMin{} to \flopMax{} MFLOPs per inference.
+For the two teacher models, \emph{Teacher 1} places
 8-dimensional embedding tables under a two-layer perceptron, giving \teacherSmallParams{}
 parameters at \teacherSmallFlops{} MFLOPs. \emph{Teacher 2} places 48-dimensional tables under a
 deep interaction trunk, giving \teacherParams{} parameters at \teacherFlops{} MFLOPs. Running
 both is what lets us report the method's sensitivity to the choice of teacher rather than to one
-arbitrary configuration of it.
+arbitrary configuration of it. For each step, we ran 5 seeds for statistic analysis.
+We report normalised entropy and calibration against the matured $\Yv$ for all methods.
 
-\paragraph{Scale and comparability.} The evidence comprises \nRunsBoth{} runs in two campaigns:
-\nRunsThree{} runs over \nArmsThree{} arms reproducing the published methods under teacher~1, and \nRunsFour{} runs over \nArmsFour{} arms adding teacher~2, with
-\seedsCore{} seeds on the headline arms and \seedsOther{} elsewhere. The second campaign runs a
-frozen copy of the first's harness and re-executes \nShared{} of the first's runs, spanning
-\nSharedArms{} arms, under its own source revision. Every one returns the identical $\NE$,
-\textsc{Wait} included across all \nSharedWait{} of its runs. That measured reproduction, rather
-than an assumption that two campaigns are comparable, is what licenses reading an arm from
-either campaign as a gain against \textsc{Wait} on one axis.
+% \paragraph{Scale and comparability.} The evidence comprises \nRunsBoth{} runs in two campaigns:
+% \nRunsThree{} runs over \nArmsThree{} arms reproducing the published methods under teacher~1, and \nRunsFour{} runs over \nArmsFour{} arms adding teacher~2, with
+% \seedsCore{} seeds on the headline arms and \seedsOther{} elsewhere. The second campaign runs a
+% frozen copy of the first's harness and re-executes \nShared{} of the first's runs, spanning
+% \nSharedArms{} arms, under its own source revision. Every one returns the identical $\NE$,
+% \textsc{Wait} included across all \nSharedWait{} of its runs. That measured reproduction, rather
+% than an assumption that two campaigns are comparable, is what licenses reading an arm from
+% either campaign as a gain against \textsc{Wait} on one axis.
 
-\paragraph{Metric and statistics.} We report normalised entropy against $\Yv$, lower being
-better, pooled over all scored clicks rather than averaged over rounds, since a per-round
-average would normalise each hour by its own base rate and discard diurnal variation a model can
-legitimately predict. \textsc{Wait} itself attains $\NE$ between \waitNeMin{} and \waitNeMax{}
-across the grid, which is the base the relative figures below are read against. Results are the
-relative reduction against \textsc{Wait} within a cell,
-computed per seed and then averaged, so a positive number means the short join delay is better
-than waiting for the matured label. Seeds differ only in initialisation and minibatch order, so
-seed $i$ of two arms forms a matched pair: we use a paired $t$-test within each cell and
-Holm--Bonferroni correction across the \nCells{} cells of a contrast, counting only cells whose
-gain is positive and survives. Seed dispersion is small away from \textsc{Fresh}, with median
-$\NE$ standard deviation \seedSdMed{} and maximum \seedSdMax{}. \textsc{Fresh} reaches
-\seedSdFresh{} at $o=5$ minutes, a finding rather than a nuisance: an uncorrected censored
-target at the shortest join delay is not a stable estimator. Seeds measure initialisation
-variance on one data origin, establishing precision rather than generalisation.
+% \paragraph{Metric and statistics.} We report normalised entropy and calibration against the matured $\Yv$, 
+% lower being better, pooled over all scored clicks rather than averaged over rounds, since a per-round
+% average would normalise each hour by its own base rate and discard diurnal variation a model can
+% legitimately predict. \textsc{Wait} itself attains $\NE$ between \waitNeMin{} and \waitNeMax{}
+% across the grid, which is the base the relative figures below are read against. Results are the
+% relative reduction against \textsc{Wait} within a cell,
+% computed per seed and then averaged, so a positive number means the short join delay is better
+% than waiting for the matured label. Seeds differ only in initialisation and minibatch order, so
+% seed $i$ of two arms forms a matched pair: we use a paired $t$-test within each cell and
+% Holm--Bonferroni correction across the \nCells{} cells of a contrast, counting only cells whose
+% gain is positive and survives. Seed dispersion is small away from \textsc{Fresh}, with median
+% $\NE$ standard deviation \seedSdMed{} and maximum \seedSdMax{}. \textsc{Fresh} reaches
+% \seedSdFresh{} at $o=5$ minutes, a finding rather than a nuisance: an uncorrected censored
+% target at the shortest join delay is not a stable estimator. Seeds measure initialisation
+% variance on one data origin, establishing precision rather than generalisation.
 
 \subsection{Findings}
 
