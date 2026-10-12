@@ -20,10 +20,8 @@ the serving model's.
 arm as $\log(1+x)$ paired with an observed-mask bit, normalised and passed through a two-layer
 perceptron to a projection vector. The nine categorical fields are hashed per field and
 embedded, giving a token per field. Tokens and the dense projection
-% TODO before submission: cite the Wukong paper here. It is not yet in refs.bib and the
-% authoring host has no network, so the layer is named without a citation for now, consistent
-% with how Sect. 2 names the screened methods.
-are then consumed by a stack of Wukong interaction layers, then output the final prediction.
+are then consumed by a stack of Wukong interaction layers~\cite{zhang2024wukong}, then output
+the final prediction.
 % , each of which
 % takes a token set and returns a token set of the same width so layers compose, combining a
 % factorisation-machine block for explicit pairwise interaction with a linear compression block
