@@ -32,14 +32,14 @@ both is what lets us report the method's sensitivity to the choice of teacher ra
 arbitrary configuration of it.
 
 \paragraph{Scale and comparability.} The evidence comprises \nRunsBoth{} runs in two campaigns:
-\nRunsThree{} runs over \nArmsThree{} arms reproducing the published methods and establishing
-the MLP-teacher results, and \nRunsFour{} runs over \nArmsFour{} arms studying the three
-targets under the deep-trunk teacher, with \seedsCore{} seeds on the headline arms and \seedsOther{}
-elsewhere. The second campaign runs a frozen copy of the first's harness. \textsc{Wait}
-instantiates no teacher, so nothing the second campaign changed can reach it, and it reproduces
-the first to zero difference across all 150 shared cells. Reporting every arm as a gain against
-\textsc{Wait} within its own campaign is therefore what places both on a single axis, rather
-than an assumption that two runs are comparable.
+\nRunsThree{} runs over \nArmsThree{} arms reproducing the published methods under the MLP
+teacher, and \nRunsFour{} runs over \nArmsFour{} arms adding the deep-trunk teacher, with
+\seedsCore{} seeds on the headline arms and \seedsOther{} elsewhere. The second campaign runs a
+frozen copy of the first's harness and re-executes \nShared{} of the first's runs, spanning
+\nSharedArms{} arms, under its own source revision. Every one returns the identical $\NE$,
+\textsc{Wait} included across all \nSharedWait{} of its runs. That measured reproduction, rather
+than an assumption that two campaigns are comparable, is what licenses reading an arm from
+either campaign as a gain against \textsc{Wait} on one axis.
 
 \paragraph{Metric and statistics.} We report normalised entropy against $\Yv$, lower being
 better, pooled over all scored clicks rather than averaged over rounds, since a per-round
@@ -68,7 +68,8 @@ conventional per-objective pipeline. Colour denotes the target and line style th
 window; \textsc{Oracle}, which labels an early record with the matured outcome and is therefore
 not causal, is drawn at $v=7$\,d to bound each panel. Shading on a curve is the standard
 deviation of the per-seed paired differences; the grey vertical band marks the two smallest
-capacities, the regime in which \textsc{Distill-Only} needs no hard label.}
+capacities, the regime in which \textsc{Distill-Only} needs no hard label. All curves use the
+deep-trunk teacher, which the ablations below place within \teachDoAbs{}\,pp of the MLP one.}
 \label{fig:gain}
 \end{figure}
 

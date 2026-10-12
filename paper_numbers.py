@@ -297,6 +297,19 @@ def build() -> dict:
         m[f"fsiw{tag}"] = f"{np.mean([g.mean() for g in cells(V3, 'FSIW', task).values()]):+.2f}"
     m["nRunsBoth"] = f"{len(V3) + len(V4):,}"
 
+    # Cross-campaign reproduction. The second campaign re-executed a subset of the first's
+    # configurations under its own source revision; every one returned the identical NE. This is
+    # the evidence that licenses reading the two campaigns on one axis, so it is measured here
+    # rather than asserted, and the build fails if a single run ever stops reproducing.
+    _key = ["arm", "task", "o_min", "cap", "seed"]
+    _sh = V3.merge(V4, on=_key, suffixes=("3", "4"))
+    _bad = int((_sh.ne3 != _sh.ne4).sum())
+    if _bad:
+        raise SystemExit(f"{_bad} shared runs no longer reproduce across campaigns")
+    m["nShared"] = f"{len(_sh):,}"
+    m["nSharedArms"] = str(_sh.arm.nunique())
+    m["nSharedWait"] = str(int((_sh.arm == WAIT).sum()))
+
     # ---- the two teacher configurations, reported side by side ---------------------------------
     # The campaigns differ in teacher ARCHITECTURE, not merely size: the small teacher is an
     # 8-dimensional embedding table under a two-layer MLP, the large one a 48-dimensional table
