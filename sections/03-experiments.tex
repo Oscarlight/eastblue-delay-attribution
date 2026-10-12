@@ -59,17 +59,19 @@ variance on one data origin, establishing precision rather than generalisation.
 
 \subsection{Findings}
 
-\begin{figure}[t]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=\textwidth]{figs/gain}
-\caption{Relative $\NE$ reduction against \textsc{Wait} as a function of served capacity, at
-join delay (A)~$o=5$, (B)~$o=30$ and (C)~$o=90$ minutes. Above the zero line beats the
-conventional per-objective pipeline. Colour denotes the target and line style the attribution
-window; \textsc{Oracle}, which labels an early record with the matured outcome and is therefore
-not causal, is drawn at $v=7$\,d to bound each panel. Shading on a curve is the standard
-deviation of the per-seed paired differences; the grey vertical band marks the two smallest
-capacities, the regime in which \textsc{Distill-Only} needs no hard label. All curves use the
-deep-trunk teacher, which the ablations below place within \teachDoAbs{}\,pp of the MLP one.}
+\caption{Relative $\NE$ reduction against \textsc{Wait} as a function of served capacity.
+Columns are the join delay, (A)~$o=5$, (B)~$o=30$ and (C)~$o=90$ minutes; rows are the teacher
+the targets were distilled from, the MLP teacher in $\mathrm{A}_1$--$\mathrm{C}_1$ and the
+deep-trunk teacher in $\mathrm{A}_2$--$\mathrm{C}_2$. Each row is read against the \textsc{Wait}
+arm of its own campaign, and the near-identical rows are the teacher-robustness result. Above
+the zero line beats the conventional per-objective pipeline. Colour denotes the target and line
+style the attribution window; \textsc{Oracle}, which labels an early record with the matured
+outcome and is therefore not causal, is drawn at $v=7$\,d to bound each panel. Shading on a
+curve is the standard deviation of the per-seed paired differences; the grey vertical band marks
+the two smallest capacities, the regime in which \textsc{Distill-Only} needs no hard label.}
 \label{fig:gain}
 \end{figure}
 

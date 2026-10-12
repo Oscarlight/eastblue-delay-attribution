@@ -9,6 +9,13 @@
 % microtype would tighten the line breaking, but it is not installed on the authoring host.
 \IfFileExists{microtype.sty}{\usepackage{microtype}}{}
 
+% Figure 1 is a 2x3 grid and therefore tall. LaTeX's stock \topfraction of 0.7 refuses it at
+% the top of a page and defers it past the bibliography; these let a large float sit on a text
+% page instead of floating to the end.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.75}
+
 % notation
 \newcommand{\Yo}{Y^{(o)}}         % label visible at the join delay
 \newcommand{\Yv}{Y^{(v)}}         % label the objective is accountable to
