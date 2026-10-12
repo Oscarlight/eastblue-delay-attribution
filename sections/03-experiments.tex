@@ -101,38 +101,6 @@ Shading on a curve is the standard deviation of the per-seed paired differences.
 \label{fig:gain}
 \end{figure}
 
-\paragraph{A short join delay beats waiting, and by more on slow funnels.}
-Writing the record \ratioSeven{} times sooner than the seven-day window it answers to reduces
-$\NE$ in all \nCells{} seven-day cells, \cdSevenSig{} of them surviving Holm--Bonferroni
-correction, ranging from \cdSevenMinAbs{}\% to \cdSevenMaxAbs{}\% with a mean of
-\cdSevenMeanAbs{}\%. At one day the same substitution gains \cdOneMeanAbs{}\%, positive in
-\cdOnePos{} of \nCells{} cells and significant in \cdOneSig{}. The direction is the informative
-part: the slower the funnel, the more a short join delay is worth, because \textsc{Wait} at
-$v=7$\,d trains on week-old data and no amount of label accuracy compensates for that. Both ends
-of the interval are measured. \textsc{Oracle} gains \oracleSevenAbs{}\% and \oracleOneAbs{}\%,
-so \textsc{Correct-Distill} recovers \recoverSeven{}\% and \recoverOne{}\% of what any causal
-correction could attain, while \textsc{Fresh} loses \freshSevenAbs{}\% and \freshOneAbs{}\%. The
-deficit the teacher fills is an order of magnitude larger than the gains above it.
-
-\paragraph{At small capacity the hard label can be dropped entirely.}
-\textsc{Distill-Only} carries no observed label at all. At the two smallest capacities it beats
-\textsc{Wait} in all \doSmallBeat{} of \doSmallN{} cells, by \doOneSmallAbs{}\% at $v=1$\,d and
-\doSevenSmallAbs{}\% at $v=7$\,d, which suits retrieval and other early-funnel stages: the record
-reduces to features and one number, and emission needs no join against the outcome. It does not
-carry to the larger rungs, losing \doOneLargeAbs{}\% at $v=1$\,d and \doSevenLargeAbs{}\% at
-$v=7$\,d across the two largest capacities, crossing over between
-$\mathrm{M}_1$ and $\mathrm{M}_2$ at every join delay, plausibly because a soft target acts as a
-regulariser that a larger model no longer needs~\cite{menon2021statistical}. Where capacity is
-ample the observed positive is what pays: \textsc{Correct-Distill} beats \textsc{Distill-Only}
-in all \cdBeatDo{} cells and \textsc{Wait} in \cdBeatWait{} of \nCellsBoth{}. The single
-exception is at $v=1$\,d, $o=5$ minutes and rung \cdNegWhere{}, by \cdNegWorstAbs{}\%, and it
-does not survive correction; that is where the teacher has least to add, since \foOneFive{} of
-the conversions are already visible.
-
-\paragraph{Comparison with published methods at a production-like operating point.}
-Table~\ref{tab:baselines} fixes one cell, $v=1$\,d and $o=90$ minutes, the point a large-scale
-system sits at, and reports the two ends of the capacity ladder rather than a mean over them.
-
 \begin{table}[!t]
 \centering
 \footnotesize
@@ -144,41 +112,43 @@ reduction against \textsc{Wait} in percent, higher is better, reported with the 
 its 95\% $t$ interval. The replicate is a seed, five per arm and ten for \textsc{Wait}, and a
 (teacher, seed) pair for the two arms in bold, which are ours and ran under both teachers.
 $^{\ddagger}$\textsc{Oracle} writes one record but labels it with the matured outcome, so it
-violates Rule~1 and is an upper reference rather than a method.}
+violates causality and is an upper reference rather than a method.}
 \label{tab:baselines}
 \input{generated/tab_baselines}
 \end{table}
 
-Three readings follow. First, the rungs disagree. At $\mathrm{M}_0$ correcting the early write
-is worth \slSmallOur{}\,$\pm$\,\slSmallOurCi{}\% and takes \slSmallRecover{}\% of the
-\slSmallOracle{}\% \textsc{Oracle} headroom, whereas at $\mathrm{M}_3$ that headroom is itself
-only \slLargeOracle{}\% and we take \slLargeRecover{}\%, because \foOneNinety{} of this cell's
-conversions are already visible when the record is written. Second, \textsc{Oracle} bounds only
-the methods that obey Rule~2: \textsc{\slSmallBest} reaches \slSmallBestGain{}\% at
-$\mathrm{M}_0$, far above it, because duplicating a click supplies training signal that matters
-most when the model has least capacity to extract it. Third, among methods a streaming pipeline
-can run we lead at both rungs, by \slSmallOur{}\% against \slSmallUlc{}\% for
-\textsc{Ulc}~\cite{wang2023unbiased} at $\mathrm{M}_0$ and \slLargeOur{}\% against
-\slLargeUlc{}\% at $\mathrm{M}_3$, though the intervals overlap at both; across the slow window
-we lead \textsc{Ulc} by \ourUlcSeven{}\,pp in \ourUlcWinSeven{} of \nCells{} cells. The gain also costs nothing in calibration:
-\textsc{Correct-Distill} is better calibrated than \textsc{Wait} at both rungs, while
-\textsc{Fresh} degrades calibration error by \slSmallFreshCalRatio{} and
-\slLargeFreshCalRatio{} times.
+\paragraph{Decoupling the join delay from the attribution window improves accuracy.}
+Writing the record early and replacing only its observed negatives with the teacher's estimate
+beats \textsc{Wait} in \cdBeatWait{} of \nCellsBoth{} cells, by \cdSevenMeanAbs{}\% on average
+at $v=7$\,d, where all \nCells{} cells survive Holm--Bonferroni correction, and
+\cdOneMeanAbs{}\% at $v=1$\,d. Figure~\ref{fig:gain} shows where that gain comes from and where
+it runs out. \textsc{Oracle}, which writes at $o$ but reads the matured label, gains
+\oracleSevenAbs{}\% at $v=7$\,d, so little recoverable headroom is left above us, while
+\textsc{Fresh}, the same early write left uncorrected, loses \freshSevenAbs{}\%, an order of
+magnitude more than the gain above it. The correction, not the early write, carries the result.
+Two further features of the figure matter for deployment. The gain is largest where the funnel
+is slowest, because \textsc{Wait} at $v=7$\,d trains on week-old data and no amount of label
+accuracy compensates for that. And the two rows are near-identical: the result does not depend
+on which teacher supplies the estimate, a difference of \teachCdMean{}\,pp over all
+\nCellsBoth{} cells, and freezing that teacher after initialisation so that it ships as a static
+file rather than a second training job costs \frzCostSevenAbs{}\,pp and still beats
+\textsc{Wait} in \frzBeat{} of \frzN{} cells.
 
-\paragraph{Robustness to the teacher.}
-Substituting teacher 1 for teacher 2 changes little. \textsc{Correct-Distill} gains
-\tchSmallCdSevenAbs{}\% against \tchLargeCdSevenAbs{}\% at seven days and \tchSmallCdOneAbs{}\%
-against \tchLargeCdOneAbs{}\% at one, and over all \nCellsBoth{} cells the two differ by
-\teachCdMean{}\,pp for \textsc{Correct-Distill} and \teachDoMean{}\,pp for
-\textsc{Distill-Only}. Spending \wideFlopRatio{} times more teacher compute at fixed parameters
-stays inside the same margin, and the default teacher learning rate beats one ten times smaller
-in every cell tested, so this describes a converged teacher rather than an untuned one. Freezing
-the teacher after initialisation, so that it ships as a static file rather than a second
-training job, costs \frzCostOneAbs{} and \frzCostSevenAbs{}\,pp and still beats \textsc{Wait} in
-\frzBeat{} of \frzN{} cells. The method therefore does not depend on a particular teacher, nor
-on keeping one running. That insensitivity is partly a property of the corpus: Criteo carries
-eight integer and nine hashed categorical fields with no creative, content or user-history
-signal, so $P(\Yv{=}1\mid\Yo{=}0,x)$ is close to exhausted by a modest architecture. A
-production corrector would see far richer features, and a cross-objective foundation model
-trained on fully matured outcomes~\cite{meta2025gem} is the artefact positioned to supply it. We
-expect that to widen the gains reported here, but we did not measure it.
+\paragraph{Which target to write depends on the served capacity.}
+The two targets separate along the capacity axis. \textsc{Distill-Only}, which carries no
+observed label at all, beats \textsc{Wait} in all \doSmallBeat{} of \doSmallN{} cells at the two
+smallest capacities, by \doOneSmallAbs{}\% at $v=1$\,d and \doSevenSmallAbs{}\% at $v=7$\,d, and
+loses at the two largest by \doOneLargeAbs{}\% and \doSevenLargeAbs{}\%, crossing over between
+$\mathrm{M}_1$ and $\mathrm{M}_2$ at every join delay, plausibly because a soft target acts as a
+regulariser that a larger model no longer needs~\cite{menon2021statistical}. Early-funnel stages
+such as retrieval can therefore drop the hard label entirely and emit a record of features and
+one number, whereas larger served models should keep the observed positive.
+Table~\ref{tab:baselines} places both targets against the literature at one operating point,
+$v=1$\,d and $o=90$ minutes. Among the methods a single-visit pipeline can actually run we lead
+at both rungs, \slSmallOur{}\% against \slSmallUlc{}\% for ULC~\cite{wang2023unbiased} at
+$\mathrm{M}_0$ and \slLargeOur{}\% against \slLargeUlc{}\% at $\mathrm{M}_3$, with overlapping
+intervals, and we are better calibrated than \textsc{Wait} at both rungs while \textsc{Fresh}
+degrades calibration error by \slSmallFreshCalRatio{} and \slLargeFreshCalRatio{} times. The
+constraint is not free: \textsc{\slSmallBest} reaches \slSmallBestGain{}\% at $\mathrm{M}_0$ by
+writing the same click several times, which supplies training signal that no single-visit
+target can recover.

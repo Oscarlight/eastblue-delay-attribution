@@ -77,12 +77,11 @@ def main() -> None:
     # --- Correct-Distill -------------------------------------------------------------------
     cd = grid("DISTILL_T13")
     pos = sum(1 for g in cd.values() if g.mean() > 0)
-    # The abstract renders this as "Wait in 23". With one losing cell the Findings prose says
-    # "The single exception"; keep the check tied to whichever wording the count implies.
+    # The Findings render this as "Wait in 23". The losing cell is no longer named in the
+    # prose, so its count is re-derived and reported but not required on the page.
     claim("Correct-Distill beats Wait", f"{pos} of {len(cd)}", f"Wait in {pos}")
     n_neg = len(cd) - pos
-    claim("...and the Findings name the exceptions", f"{n_neg} of {len(cd)}",
-          "The single exception" if n_neg == 1 else f"The {n_neg} exceptions")
+    claim("losing cells (not named in the prose)", f"{n_neg} of {len(cd)}", None)
     do = grid("DISTILL_pv")
     beats = sum(1 for k in cd if cd[k].mean() > do[k].mean())
     claim("Correct-Distill beats Distill-Only", f"{beats} of {len(cd)}", None)
@@ -93,8 +92,7 @@ def main() -> None:
         assert np.mean(v) > 0, f"{tag} mean must be a gain"
         claim(f"Correct-Distill {tag} mean", f"+{abs(np.mean(v)):.2f}%", f"{abs(np.mean(v)):.2f}")
         if t == "7d":
-            claim("Correct-Distill 7d range", f"+{abs(min(v)):.2f} to +{abs(max(v)):.2f}",
-                  f"{abs(min(v)):.2f}")
+            claim("Correct-Distill 7d range", f"+{abs(min(v)):.2f} to +{abs(max(v)):.2f}", None)
 
     # the two losing cells, as described
     neg = sorted(k for k, g in cd.items() if g.mean() <= 0)
@@ -103,7 +101,7 @@ def main() -> None:
     assert all(k[0] == "1d" and k[1] == 5 for k in neg), "paper locates both at 1d, o=5min"
     worst = min(cd[k].mean() for k in neg)
     assert worst < 0, "the losing cell must be a loss"
-    claim("worst losing cell", f"{worst:+.3f}%", f"{abs(worst):.3f}")
+    claim("worst losing cell", f"{worst:+.3f}%", None)
     # ... and that neither survives Holm across the 15-cell family
     ps = []
     for k in grid("DISTILL_T13", "1d"):
@@ -150,7 +148,9 @@ def main() -> None:
                             ("DISTILL_pv", "DISTILL_pvmlp", "Distill-Only")):
         df = [rel(big, t, o, c).mean() - rel(small, t, o, c).mean()
               for t in TASKS for o in OS for c in CAPS]
-        claim(f"teacher 6x step, {lab}", f"{np.mean(df):+.3f} pp", f"{np.mean(df):+.3f}")
+        # Only the Correct-Distill figure reaches the page; both are still re-derived.
+        claim(f"teacher 6x step, {lab}", f"{np.mean(df):+.3f} pp",
+              f"{np.mean(df):+.3f}" if lab == "Correct-Distill" else None)
         assert abs(np.mean(df)) < 0.25, "paper claims a bigger teacher buys nothing"
 
     # --- Wait baseline ---------------------------------------------------------------------------
@@ -176,8 +176,10 @@ def main() -> None:
         wins = sum(a > b for a, b in zip(ours, ulc))
         # Only the 7d figures are quoted now; Table 1 carries the 1d comparison at its own cell.
         if t == "7d":
-            claim(f"lead over ULC {tag}", f"{lead:+.2f} pp", f"{lead:+.2f}")
-            claim(f"cells beating ULC {tag}", f"{wins} of {len(ours)}", f"{wins} of {len(ours)}")
+            # The grid-wide ULC margin is no longer quoted; Table 1 carries the comparison.
+            claim(f"lead over ULC {tag}", f"{lead:+.2f} pp", None)
+            claim(f"cells beating ULC {tag}", f"{wins} of {len(ours)}", None)
+            assert lead > 0, "paper says we lead ULC at the slow window"
 
     # --- Table 1: the production-like cell, v=1d and o=90 min, at M0 and M4 -------------------
     # Independent re-derivation: concatenate both campaigns, drop the 850 duplicated re-runs on
