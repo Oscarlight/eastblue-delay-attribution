@@ -55,9 +55,13 @@ INK, MUTED, BAND = "#1A1A1A", "#4A4A4A", "#EFEFEF"
 #: (row tag, parquet, row label, Correct-Distill arm, Distill-Only arm). Same two methods in
 #: both rows under the campaign's own arm names.
 ROWS = [
-    ("1", "v3_all_runs.parquet", "MLP teacher",        "DISTILL_Tmlp", "DISTILL_pvmlp"),
-    ("2", "v4_all_runs.parquet", "Deep-trunk teacher", "DISTILL_T13",  "DISTILL_pv"),
+    ("1", "v3_all_runs.parquet", "Teacher 1", "DISTILL_Tmlp", "DISTILL_pvmlp"),
+    ("2", "v4_all_runs.parquet", "Teacher 2", "DISTILL_T13",  "DISTILL_pv"),
 ]
+
+#: Data keys are historical; the paper calls the served-capacity rungs M0..M4 so they are never
+#: confused with the figure's A/B/C panel labels.
+MDISP = [f"M{i}" for i in range(len(CAPS))]
 
 #: Colour encodes the target, line style the attribution window. Never colour alone.
 #: `cd`/`do` are resolved per row from ROWS.
@@ -128,17 +132,18 @@ def main() -> None:
 
             ax.set_xscale("log")
             ax.set_xticks([PARAMS[c_] for c_ in CAPS])
-            ax.set_xticklabels(CAPS)
+            ax.set_xticklabels(MDISP)
             ax.set_xticks([], minor=True)
-            ax.tick_params(colors=MUTED, pad=1.5)
+            ax.tick_params(colors=MUTED, pad=1.5, labelbottom=True)
             ax.text(0.0, 1.17, f"{'ABC'[c]}$_{tag}$", transform=ax.transAxes,
                     fontsize=9, fontweight="bold", va="top", ha="left", color=INK)
-            if r == 0:
-                ax.set_title(rf"$o = {o}$ min", fontsize=8, color=INK, pad=3)
+            ax.set_title(rf"$o = {o}$ min", fontsize=8, color=INK, pad=3)
             for sp in ax.spines.values():
                 sp.set_color(MUTED)
 
-        # Row identity on the right edge, where it cannot collide with the shared y-label.
+        axes[r, 0].set_ylabel("NE gain (%)", fontsize=7.5, color=INK, labelpad=2)
+
+        # Row identity on the right edge, where it cannot collide with the y-label.
         axes[r, 2].text(1.04, 0.5, rowlab, transform=axes[r, 2].transAxes, rotation=270,
                         fontsize=7.5, color=INK, va="center", ha="left")
 
@@ -149,7 +154,6 @@ def main() -> None:
     # One shared label per axis rather than six copies. The y-label is kept short because a
     # rotated label longer than the axes height gets clipped; the caption carries the detail.
     fig.supxlabel("Served capacity", fontsize=7.5, color=MUTED, y=0.158)
-    fig.supylabel("NE gain (%)", fontsize=7.5, color=INK, x=0.012)
 
     # Two legends rather than five entries. Colour and line style are independent encodings, so
     # spelling them out separately halves the width and teaches the reader the scheme; a single

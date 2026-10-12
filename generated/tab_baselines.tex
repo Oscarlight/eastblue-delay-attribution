@@ -1,21 +1,20 @@
-\begin{tabular}{@{}lrrr@{}}
+\begin{tabular}{@{}lcrrr@{}}
 \toprule
-Method & Records/click & $v{=}1$\,d & $v{=}7$\,d \\
+Method & Rule 1 / 2 & $\NE$ & Cal.\ err. & $\Delta\NE$ (\%) \\
 \midrule
-\multicolumn{4}{@{}l}{\emph{Revise the record after writing it}} \\
-\textsc{DEFUSE} & 1.03 & \textbf{+0.75} & \textbf{+2.23} \\
-\textsc{DFM}~\cite{chapelle2014modeling} & 1.33 & +0.72 & +2.20 \\
-\textsc{ES{-}DFM} & 1.03 & +0.73 & +2.18 \\
-\textsc{MISS} & 3.05 & $-$0.15 & +2.07 \\
-\textsc{DDFM} & 1.89 & +0.08 & +1.81 \\
-\textsc{FTP} & 4.00 & +0.69 & +1.75 \\
-\textsc{PI} & 2.00 & +0.47 & +1.33 \\
-\textsc{IF{-}DFM} & 2.79 & n/a & n/a \\
-\midrule
-\multicolumn{4}{@{}l}{\emph{One record per click}} \\
-\textbf{\textsc{Correct-Distill} (ours)} & 1.00 & \textbf{+0.57} & \textbf{+1.97} \\
-\textsc{ULC}~\cite{wang2023unbiased} & 1.00 & +0.56 & +1.84 \\
-\textbf{\textsc{Distill-Only} (ours)}$^{\dagger}$ & 1.00 & $-$0.07 & +0.40 \\
-\textsc{FSIW}~\cite{yasui2020feedback} & 1.00 & $-$0.45 & +0.31 \\
+\textsc{Wait} & yes / yes & 0.7409(5) & 0.0648(13) & ref. \\
+\textsc{DFM}~\cite{chapelle2014modeling} & yes / no & 0.7344(4) & 0.0577(6) & +0.82(5) \\
+\textsc{FTP} & yes / no & 0.7351(6) & 0.0535(26) & +0.76(7) \\
+\textsc{Oracle} & no / yes & 0.7352(10) & 0.0584(29) & +0.75(9) \\
+\textbf{\textsc{Correct{-}Distill}} & yes / yes & 0.7360(4) & 0.0647(13) & +0.64(3) \\
+\textsc{ULC}~\cite{wang2023unbiased} & yes / yes & 0.7362(6) & 0.0666(17) & +0.60(4) \\
+\textsc{FSIW}~\cite{yasui2020feedback} & yes / yes & 0.7363(8) & 0.0679(17) & +0.60(6) \\
+\textsc{PI} & yes / no & 0.7368(11) & 0.0773(9) & +0.54(12) \\
+\textsc{DEFUSE} & yes / no & 0.7376(7) & 0.0814(20) & +0.42(6) \\
+\textsc{ES{-}DFM} & yes / no & 0.7378(8) & 0.0826(19) & +0.39(6) \\
+\textsc{MISS} & yes / no & 0.7413(5) & 0.1086(31) & $-$0.08(7) \\
+\textbf{\textsc{Distill{-}Only}}$^{\dagger}$ & yes / yes & 0.7417(6) & 0.0725(67) & $-$0.14(7) \\
+\textsc{DDFM} & yes / no & 0.7422(3) & 0.0592(13) & $-$0.18(8) \\
+\textsc{Fresh} & yes / yes & 0.7526(10) & 0.1823(20) & $-$1.61(9) \\
 \bottomrule
 \end{tabular}

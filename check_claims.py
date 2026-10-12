@@ -68,7 +68,7 @@ def main() -> None:
     print(f"checking main.pdf against {len(V4):,} v4 runs and {len(V3):,} v3 runs\n")
 
     # --- the screen (v3) -------------------------------------------------------------------
-    claim("methods screened / failing single-visit", "8 of 10", "10 published methods")
+    claim("methods screened / failing single-visit", "7 of 9", "9 published methods")
     claim("worst duplication", "4.00 records per click", "4.00")
 
     # --- Correct-Distill -------------------------------------------------------------------
@@ -169,27 +169,65 @@ def main() -> None:
         ulc = V3G("ULC", t)
         lead = np.mean(ours) - np.mean(ulc)
         wins = sum(a > b for a, b in zip(ours, ulc))
+        # Only the 7d figures are quoted now; Table 1 carries the 1d comparison at its own cell.
         if t == "7d":
             claim(f"lead over ULC {tag}", f"{lead:+.2f} pp", f"{lead:+.2f}")
             claim(f"cells beating ULC {tag}", f"{wins} of {len(ours)}", f"{wins} of 15")
-        else:
-            claim(f"cells beating ULC {tag}", f"{wins} of {len(ours)}", f"{wins} of 15")
 
-    # --- the price of single-visit, and the baseline table --------------------------------------
-    NONCOMP = ["DFM", "ES-DFM", "DEFUSE", "DDFM", "FTP", "MISS", "PI"]
-    for tag, t in (("7d", "7d"), ("1d", "1d")):
-        best = max(NONCOMP, key=lambda a: np.mean(V3G(a, t)))
-        price = np.mean(V3G(best, t)) - np.mean([g.mean() for g in grid("DISTILL_T13", t).values()])
-        claim(f"price of single-visit {tag} (vs {best})", f"{price:.2f} pp", f"{price:.2f}")
-        assert price > 0, "paper says the non-compliant method is ahead"
-    # Every accuracy cell of Table 1, re-derived here and read back off the page. TWICE is absent
-    # by design: it does not reproduce competitively in this harness, so the paper omits it
-    # rather than printing a number it cannot stand behind.
-    for arm in ("DFM", "ES-DFM", "DEFUSE", "DDFM", "FTP", "MISS", "PI", "FSIW", "ULC"):
-        for t in ("1d", "7d"):
-            v = np.mean(V3G(arm, t))
-            claim(f"table row {arm} {t}", f"{v:+.2f}%", f"{v:+.2f}")
+    # --- Table 1: the production-like cell, v=1d and o=90 min ---------------------------------
+    # Re-derived here from the two parquets with an independent code path: concatenate, drop the
+    # 850 duplicated re-runs on the run key, average each (arm, seed) replicate over the five
+    # capacities, then take a t interval across replicates. Methods that ran under both teachers
+    # pool their two arm names, which is why n is 15 rather than 5 for ours.
+    KEY = ["arm", "task", "o_min", "cap", "seed"]
+    SL = pd.concat([V3, V4], ignore_index=True).drop_duplicates(subset=KEY, keep="first")
+    SL = SL[(SL.task == "1d") & (SL.o_min == 90)]
+    SW = SL[SL.arm == "DISTILL_T"].set_index(["cap", "seed"])["ne"]
+
+    def reps(arms):
+        ne, gain = [], []
+        for a in arms:
+            for seed, g in SL[SL.arm == a].groupby("seed"):
+                g = g.set_index("cap")
+                if not set(CAPS) <= set(g.index):
+                    continue
+                v = g.loc[CAPS, "ne"].to_numpy()
+                b = np.array([SW.loc[(c, seed)] for c in CAPS])
+                ne.append(v.mean())
+                gain.append(float(np.mean(100.0 * (b - v) / b)))
+        return np.array(ne), np.array(gain)
+
+    def tci(v):
+        return v.mean(), stats.t.ppf(0.975, len(v) - 1) * v.std(ddof=1) / np.sqrt(len(v))
+
+    TAB = {"DFM": ["DFM"], "ES-DFM": ["ES-DFM"], "DEFUSE": ["DEFUSE"], "DDFM": ["DDFM"],
+           "FTP": ["FTP"], "MISS": ["MISS"], "PI": ["PI"], "FSIW": ["FSIW"], "ULC": ["ULC"],
+           "Oracle": ["Oracle"], "Fresh": ["DISTILL_nokd"],
+           "Correct-Distill": ["DISTILL_Tmlp", "DISTILL_T13"],
+           "Distill-Only": ["DISTILL_pvmlp", "DISTILL_pv"]}
+    gains = {}
+    for name, arms in TAB.items():
+        ne, g = reps(arms)
+        gm, gh = tci(g)
+        nm, nh = tci(ne)
+        gains[name] = gm
+        claim(f"Table 1 {name} dNE", f"{gm:+.2f} +-{gh:.2f}", f"{gm:+.2f}")
+        claim(f"Table 1 {name} NE", f"{nm:.4f} +-{nh:.4f}", f"{nm:.4f}")
+
+    # The headline reading of the table: the leader duplicates, and Oracle does not bound it.
+    best = max((k for k in TAB if k in ("DFM", "ES-DFM", "DEFUSE", "DDFM", "FTP", "MISS", "PI")),
+               key=lambda k: gains[k])
+    claim(f"price of single-visit at the cell (vs {best})",
+          f"{gains[best] - gains['Correct-Distill']:.2f} pp",
+          f"{gains[best] - gains['Correct-Distill']:.2f}")
+    over = sum(1 for k in ("DFM", "ES-DFM", "DEFUSE", "DDFM", "FTP", "MISS", "PI")
+               if gains[k] > gains["Oracle"])
+    claim("duplicating arms above the single-visit Oracle", f"{over}", f"{over} arms")
+    assert gains["Correct-Distill"] > max(gains["ULC"], gains["FSIW"]), \
+        "paper says ours leads the single-visit group at this cell"
+
     assert "TWICE" not in PDF and "Twice" not in PDF, "TWICE must not appear in the paper"
+    assert "IF-DFM" not in PDF, "IF-DFM must not appear in the paper"
     claim("combined run count", f"{len(V3) + len(V4):,}", f"{len(V3) + len(V4):,}")
 
     print(f"\n{sum(OK)}/{len(OK)} claims reproduce and appear in the PDF")

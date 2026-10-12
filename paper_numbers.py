@@ -35,6 +35,9 @@ V4 = pd.read_parquet(HERE / "data" / "v4_all_runs.parquet")
 V3 = pd.read_parquet(HERE / "data" / "v3_all_runs.parquet")
 
 CAPS = ["A0", "A1", "A2", "A3", "A4"]
+#: The data keys are historical; the paper calls the served-capacity rungs M0..M4 so they are
+#: never confused with the figure's A/B/C panel labels. Display only -- never index with these.
+MDISP = {c: f"M{i}" for i, c in enumerate(CAPS)}
 SMALL, LARGE = ["A0", "A1"], ["A2", "A3", "A4"]
 OS, TASKS = [5, 30, 90], ["1d", "7d"]
 WAIT, CD, DO = "DISTILL_T", "DISTILL_T13", "DISTILL_pv"
@@ -143,7 +146,7 @@ def screen() -> pd.DataFrame:
     """
     return pd.DataFrame([
         ("DFM", 1.33, False), ("ES-DFM", 1.03, False), ("DEFUSE", 1.03, False),
-        ("DDFM", 1.89, False), ("IF-DFM", 2.79, False), ("FTP", 4.00, False),
+        ("DDFM", 1.89, False), ("FTP", 4.00, False),
         ("MISS", 3.05, False), ("PI", 2.00, False),
         ("FSIW", 1.00, True), ("ULC", 1.00, True),
     ], columns=["arm", "dup", "pass"])
@@ -194,8 +197,6 @@ def build() -> dict:
     m["nFail"] = str(int((~sc["pass"]).sum()))
     m["maxDup"] = f"{sc.dup.max():.2f}"
     m["maxDupArm"] = sc.loc[sc.dup.idxmax(), "arm"]
-    m["maxVisits"] = "97"
-    m["maxVisitsArm"] = "IF-DFM"
     m["vanillaDup"] = "1.03"
     m["passList"] = ", ".join(sc[sc["pass"]].arm)
 
@@ -224,7 +225,7 @@ def build() -> dict:
     neg = [k for k, g in allc.items() if g.mean() <= 0]
     m["cdBeatWait"] = str(len(allc) - len(neg))
     m["cdNegN"] = str(len(neg))
-    m["cdNegWhere"] = ", ".join(f"{k[2]}" for k in sorted(neg, key=lambda x: x[2]))
+    m["cdNegWhere"] = ", ".join(MDISP[k[2]] for k in sorted(neg, key=lambda x: x[2]))
     m["cdNegWorst"] = f"{min(allc[k].mean() for k in neg):+.3f}" if neg else "n/a"
     # beats Distill-Only everywhere?
     both = sum(1 for t in TASKS for o in OS for c in CAPS
@@ -313,6 +314,43 @@ def build() -> dict:
         m[f"fsiw{tag}"] = f"{np.mean([g.mean() for g in cells(V3, 'FSIW', task).values()]):+.2f}"
     m["nRunsBoth"] = f"{len(V3) + len(V4):,}"
 
+    # ---- Table 1's operating point, quoted in the prose around it ---------------------------
+    st = slice_stats()
+    best = max((k for k in st if st[k]["r2"] == "no"), key=lambda k: st[k]["gain"][0])
+    m["sliceBest"] = best
+    m["sliceBestGain"] = f"{st[best]['gain'][0]:+.2f}"
+    m["sliceOurGain"] = f"{st['Correct-Distill']['gain'][0]:+.2f}"
+    m["sliceOurCi"] = f"{st['Correct-Distill']['gain'][1]:.2f}"
+    m["sliceUlcGain"] = f"{st['ULC']['gain'][0]:+.2f}"
+    m["sliceUlcCi"] = f"{st['ULC']['gain'][1]:.2f}"
+    m["slicePrice"] = f"{st[best]['gain'][0] - st['Correct-Distill']['gain'][0]:.2f}"
+    m["sliceOracleGain"] = f"{st['Oracle']['gain'][0]:+.2f}"
+    m["sliceWaitNe"] = f"{st['Wait']['ne'][0]:.4f}"
+    m["sliceWaitCal"] = f"{st['Wait']['cal'][0]:.4f}"
+    m["sliceOurCal"] = f"{st['Correct-Distill']['cal'][0]:.4f}"
+    m["sliceFreshCal"] = f"{st['Fresh']['cal'][0]:.4f}"
+    m["sliceFreshCalRatio"] = f"{st['Fresh']['cal'][0] / st['Wait']['cal'][0]:.1f}"
+    #: how many non-compliant arms clear the single-visit Oracle at this cell
+    m["sliceOverOracle"] = str(sum(1 for k, r in st.items()
+                                   if r["r2"] == "no" and r["gain"][0] > st["Oracle"]["gain"][0]))
+
+    # Distill-Only at the two smallest rungs of this same cell, for Table 1's dagger note.
+    d1 = combined()
+    d1 = d1[(d1.task == SLICE_TASK) & (d1.o_min == SLICE_O)]
+    w1 = d1[d1.arm == WAIT].set_index(["cap", "seed"])["ne"]
+    g1 = []
+    for a in (TEACHER_ALT[DO], DO):
+        for seed, g in d1[d1.arm == a].groupby("seed"):
+            g = g.set_index("cap")
+            if not set(SMALL) <= set(g.index):
+                continue
+            v = g.loc[SMALL, "ne"].to_numpy()
+            base = np.array([w1.loc[(c, seed)] for c in SMALL])
+            g1.append(float(np.mean(100.0 * (base - v) / base)))
+    mu, hw = _ci(g1)
+    m["sliceDoSmall"] = f"{mu:+.2f}"
+    m["sliceDoSmallCi"] = f"{hw:.2f}"
+
     # Cross-campaign reproduction. The second campaign re-executed a subset of the first's
     # configurations under its own source revision; every one returned the identical NE. This is
     # the evidence that licenses reading the two campaigns on one axis, so it is measured here
@@ -371,61 +409,109 @@ def minus(s: str) -> str:
     return s.replace("-", "$-$") if s.startswith("-") else s
 
 
-def baseline_table(m: dict, sc: pd.DataFrame) -> str:
-    """Table 1: every reproduced method, grouped by whether it obeys the single-visit rule.
+#: Table 1 reports one operating point rather than a grid average: the fast window at the
+#: longest join delay. That is the cell closest to a large-scale production setting, where the
+#: upper-funnel objective closes in a day and the pipeline still needs an hour or so to join.
+SLICE_TASK, SLICE_O = "1d", 90
 
-    Grouping replaces what used to be a yes/no column: the block heading carries the same
-    information for free. Rows are ordered by the seven-day gain so each block reads as a
-    leaderboard; IF-DFM was audited for duplication but not run for accuracy, so its cells are
-    em-dashes rather than a number we do not have.
+#: Paper method name -> the arm name(s) carrying it. Correct-Distill and Distill-Only each ran
+#: under both teachers with different arm names, so both are pooled; see the mapping above.
+SLICE_METHODS = [
+    ("Wait",            [WAIT],                        "yes", "yes"),
+    ("Oracle",          [ORACLE],                      "no",  "yes"),
+    ("Fresh",           [FRESH],                       "yes", "yes"),
+    ("DFM",             ["DFM"],                       "yes", "no"),
+    ("ES-DFM",          ["ES-DFM"],                    "yes", "no"),
+    ("DEFUSE",          ["DEFUSE"],                    "yes", "no"),
+    ("DDFM",            ["DDFM"],                      "yes", "no"),
+    ("FTP",             ["FTP"],                       "yes", "no"),
+    ("MISS",            ["MISS"],                      "yes", "no"),
+    ("PI",              ["PI"],                        "yes", "no"),
+    ("FSIW",            ["FSIW"],                      "yes", "yes"),
+    ("ULC",             ["ULC"],                       "yes", "yes"),
+    ("Correct-Distill", [TEACHER_ALT[CD], CD],         "yes", "yes"),
+    ("Distill-Only",    [TEACHER_ALT[DO], DO],         "yes", "yes"),
+]
+
+
+def combined() -> pd.DataFrame:
+    """v3 and v4 as one frame, de-duplicated on the run key.
+
+    The second campaign re-executed 850 of the first's configurations and reproduced them
+    exactly. Concatenating without de-duplication would enter those runs twice and shrink every
+    confidence interval by a factor of roughly sqrt(2) for no added information, so identical
+    re-runs are collapsed to one. Arms that exist only in one campaign are unaffected.
     """
-    def gains(arm):
-        try:
-            return (np.mean([g.mean() for g in cells(V3, arm, "1d").values()]),
-                    np.mean([g.mean() for g in cells(V3, arm, "7d").values()]))
-        except (KeyError, ValueError, ZeroDivisionError):
-            return None
+    key = ["arm", "task", "o_min", "cap", "seed"]
+    return pd.concat([V3, V4], ignore_index=True).drop_duplicates(subset=key, keep="first")
 
-    def fmt(name, g, ours=False):
+
+def _ci(v):
+    """Mean and half-width of the 95% t interval. The replicate is a (arm, seed) run averaged
+    over the five capacities, so the interval is across seeds and, where a method ran under both
+    teachers, across teachers as well."""
+    v = np.asarray(v, dtype=float)
+    if len(v) < 2:
+        return float(v.mean()), float("nan")
+    return float(v.mean()), float(stats.t.ppf(0.975, len(v) - 1) * v.std(ddof=1) / np.sqrt(len(v)))
+
+
+def slice_stats() -> dict:
+    """Per-method NE, calibration error and paired gain over Wait at the production-like cell."""
+    d = combined()
+    d = d[(d.task == SLICE_TASK) & (d.o_min == SLICE_O)]
+    w = d[d.arm == WAIT].set_index(["cap", "seed"])["ne"]
+    out = {}
+    for name, arms, r1, r2 in SLICE_METHODS:
+        ne, cal, gain = [], [], []
+        for a in arms:
+            for seed, g in d[d.arm == a].groupby("seed"):
+                g = g.set_index("cap")
+                if not set(CAPS) <= set(g.index):
+                    continue                      # never average over a partial ladder
+                v = g.loc[CAPS, "ne"].to_numpy()
+                ne.append(v.mean())
+                cal.append(g.loc[CAPS, "cal_err"].to_numpy().mean())
+                base = np.array([w.loc[(c, seed)] for c in CAPS])
+                gain.append(float(np.mean(100.0 * (base - v) / base)))
+        out[name] = dict(n=len(ne), ne=_ci(ne), cal=_ci(cal), gain=_ci(gain), r1=r1, r2=r2)
+    return out
+
+
+def baseline_table(m: dict, sc: pd.DataFrame) -> str:
+    """Table 1: every reproduced method at the production-like cell, v=1d and o=90 min.
+
+    Rows are sorted by the gain so the table reads as a leaderboard, with Wait first as the
+    reference it is measured against. Rule 1 is causality and Rule 2 single-visit, so the
+    yes/no pair identifies at a glance which rows describe a deployable streaming pipeline.
+    """
+    st = slice_stats()
+    order = ["Wait"] + sorted((k for k in st if k != "Wait"),
+                              key=lambda k: -st[k]["gain"][0])
+
+    def paren(mu, hw, dp, signed=False):
+        """``0.7409(5)``: the bracketed digits are the 95% half-width in units of the last
+        decimal place. Three intervals plus a method name do not fit the LNCS text block in
+        ``x $\\pm$ y`` form, and this convention is compact and unambiguous once the caption
+        says so. The column of point estimates also stays readable as a column."""
+        v = f"{mu:+.{dp}f}" if signed else f"{mu:.{dp}f}"
+        return f"{minus(v)}({round(hw * 10 ** dp):.0f})"
+
+    body = ""
+    for name in order:
+        r = st[name]
         tag = rf"\textsc{{{name.replace('-', '{-}')}}}{CITE.get(name, '')}"
-        if ours:
-            tag = rf"\textbf{{{tag} (ours)}}"
-        dup = f"{sc.loc[sc.arm == name, 'dup'].iloc[0]:.2f}" if (sc.arm == name).any() else "1.00"
-        # "n/a" rather than an em dash: in a right-aligned numeric column a rule-like glyph
-        # reads as a value, and "---" does not form a single dash in this font anyway.
-        one, seven = ("n/a", "n/a") if g is None else (f"{g[0]:+.2f}", f"{g[1]:+.2f}")
-        return [tag, dup, minus(one), minus(seven)]
+        if name in ("Correct-Distill", "Distill-Only"):
+            tag = rf"\textbf{{{tag}}}"
+        if name == "Distill-Only":
+            tag += r"$^{\dagger}$"
+        gain = "ref." if name == "Wait" else paren(*r["gain"], 2, signed=True)
+        body += " & ".join([tag, f"{r['r1']} / {r['r2']}",
+                            paren(*r["ne"], 4), paren(*r["cal"], 4), gain]) + r" \\" + "\n"
 
-    revise, single = [], []
-    for r in sc.itertuples():
-        g = gains(r.arm) if r.arm != "IF-DFM" else None
-        (single if r._3 else revise).append((g[1] if g else -99, fmt(r.arm, g)))
-    revise.sort(key=lambda t: -t[0])
-    single.sort(key=lambda t: -t[0])
-
-    cd = (float(m["cdSevenMean"]), [r"\textbf{\textsc{Correct-Distill} (ours)}", "1.00",
-                                    minus(m["cdOneMean"]), minus(m["cdSevenMean"])])
-    do = (float(m["doSevenMean"]), [r"\textbf{\textsc{Distill-Only} (ours)}$^{\dagger}$", "1.00",
-                                    minus(m["doOneMean"]), minus(m["doSevenMean"])])
-    single = sorted(single + [cd, do], key=lambda t: -t[0])
-
-    def block(title, rows):
-        best = max(rows, key=lambda t: t[0])[1][0]
-        body = ""
-        for _, cells_ in rows:
-            c = list(cells_)
-            if c[0] == best:                      # bold the leader of the block, both windows
-                c[2], c[3] = rf"\textbf{{{c[2]}}}", rf"\textbf{{{c[3]}}}"
-            body += " & ".join(c) + r" \\" + "\n"
-        return (rf"\multicolumn{{4}}{{@{{}}l}}{{\emph{{{title}}}}} \\" + "\n") + body
-
-    return (
-        "\\begin{tabular}{@{}lrrr@{}}\n\\toprule\n"
-        "Method & Records/click & $v{=}1$\\,d & $v{=}7$\\,d \\\\\n\\midrule\n"
-        + block("Revise the record after writing it", revise)
-        + "\\midrule\n"
-        + block("One record per click", single)
-        + "\\bottomrule\n\\end{tabular}\n")
+    return ("\\begin{tabular}{@{}lcrrr@{}}\n\\toprule\n"
+            "Method & Rule 1 / 2 & $\\NE$ & Cal.\\ err. & $\\Delta\\NE$ (\\%) \\\\\n"
+            "\\midrule\n" + body + "\\bottomrule\n\\end{tabular}\n")
 
 
 def write_tex(m: dict) -> None:

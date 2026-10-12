@@ -38,8 +38,7 @@ distinct clicks touched, since dividing records consumed by records released con
 duplication with variation in click volume. And a scoring window shorter than a method's revisit
 horizon cannot observe the revisit, so we score only clicks whose entire horizon lies inside the
 stream.} At $v=1$\,d the counts are \input{generated/screen_inline}. The highest,
-\maxVisitsArm{}, reaches \maxVisits{} writes for a single click, its mechanism being an update
-applied whenever a label reverses. The plain re-ingestion
+\maxDupArm{}, writes \maxDup{} records for every click it touches. The plain re-ingestion
 baseline~\cite{ktena2019addressing,gu2021real} measures \vanillaDup{} and fails the same
 criterion. Duplication is a property of emission logic rather than of the model, and the audit
 returns identical counts at the smallest and largest served capacities. Only \passList{} satisfy
