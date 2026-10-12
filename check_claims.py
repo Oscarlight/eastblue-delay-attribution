@@ -119,6 +119,17 @@ def main() -> None:
     claim("Distill-Only 1d, three largest (a loss)", f"{lg:+.2f}%", f"{abs(lg):.2f}")
     assert sm > 0 > lg, "paper claims a sign change"
 
+    # Contribution (3): drop the hard label at small capacity. A mean could hide a split, so the
+    # paper counts cells; re-derive the count here rather than trusting the generated macro.
+    small = [rel("DISTILL_pv", t, o, c).mean()
+             for t in ("1d", "7d") for o in OS for c in ("A0", "A1")]
+    won = sum(1 for g in small if g > 0)
+    claim("Distill-Only beats Wait at small capacity", f"{won} of {len(small)}",
+          f"all {won} of {len(small)}")
+    sm7 = np.mean([rel("DISTILL_pv", "7d", o, c).mean() for o in OS for c in ("A0", "A1")])
+    claim("Distill-Only 7d, two smallest (a gain)", f"{sm7:+.2f}%", f"{abs(sm7):.2f}")
+    assert won == len(small), "paper claims every small-capacity cell is a win"
+
     # --- oracle recovery ----------------------------------------------------------------------
     for tag, t in (("7d", "7d"), ("1d", "1d")):
         c = np.mean([g.mean() for k, g in cd.items() if k[0] == t])

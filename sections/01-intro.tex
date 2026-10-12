@@ -36,6 +36,8 @@ window, with the causality and single-visit rules a deployable pipeline must sat
 audit of \nScreened{} published methods against them, of which \nFail{} violate single-visit by
 writing up to \maxDup{} records per click; (2) evidence that writing the record early and
 softening only its observed negatives beats waiting for the matured label, by more as the funnel
-slows, and is the strongest target obeying the single-visit rule; (3) ablations establishing
-that the result needs neither a large teacher, an expensive one, nor one retrained while the
-student trains, which is what makes it cheap to adopt beside an existing ranking system.
+slows, and is the strongest target obeying the single-visit rule; (3) the finding that at small
+served capacities the hard label can be dropped altogether, since a target consisting only of
+the teacher's estimate beats waiting in all \doSmallBeat{} of \doSmallN{} such cells, by
+\doOneSmallAbs{}\% at one day and \doSevenSmallAbs{}\% at seven, which gives retrieval and other
+small-model stages a simpler option that carries no observed label at all.

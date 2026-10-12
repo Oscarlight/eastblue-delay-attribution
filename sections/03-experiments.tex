@@ -24,17 +24,17 @@ join delays are used, $o\in\{5,30,90\}$ minutes. Five served capacities range fr
 \capMax{} parameters and \flopMin{} to \flopMax{} MFLOPs per inference. Parameters and compute
 do not track each other, since the two smallest rungs differ 5.2-fold in parameters at identical
 compute, so we report both rather than let one stand for the other. The fourth axis is the
-teacher, and we study two configurations differing in architecture rather than only in scale.
-The \emph{small} teacher places 8-dimensional embedding tables under a two-layer perceptron,
-giving \teacherSmallParams{} parameters at \teacherSmallFlops{} MFLOPs. The \emph{large} teacher
-places 48-dimensional tables under a deep interaction trunk, giving \teacherParams{} parameters
-at \teacherFlops{} MFLOPs, a \teacherRatio{}-fold increase in size and \teacherFlopRatio{}-fold
-in compute. Reporting both is what licenses any claim about whether teacher capacity matters.
+teacher, for which we study two architectures. The \emph{MLP} teacher places 8-dimensional
+embedding tables under a two-layer perceptron, giving \teacherSmallParams{} parameters at
+\teacherSmallFlops{} MFLOPs. The \emph{deep-trunk} teacher places 48-dimensional tables under a
+deep interaction trunk, giving \teacherParams{} parameters at \teacherFlops{} MFLOPs. Running
+both is what lets us report the method's sensitivity to the choice of teacher rather than to one
+arbitrary configuration of it.
 
 \paragraph{Scale and comparability.} The evidence comprises \nRunsBoth{} runs in two campaigns:
 \nRunsThree{} runs over \nArmsThree{} arms reproducing the published methods and establishing
-the small-teacher results, and \nRunsFour{} runs over \nArmsFour{} arms studying the three
-targets at the large teacher, with \seedsCore{} seeds on the headline arms and \seedsOther{}
+the MLP-teacher results, and \nRunsFour{} runs over \nArmsFour{} arms studying the three
+targets under the deep-trunk teacher, with \seedsCore{} seeds on the headline arms and \seedsOther{}
 elsewhere. The second campaign runs a frozen copy of the first's harness. \textsc{Wait}
 instantiates no teacher, so nothing the second campaign changed can reach it, and it reproduces
 the first to zero difference across all 150 shared cells. Reporting every arm as a gain against
@@ -87,18 +87,22 @@ correction could attain. \textsc{Fresh}, the same early write with no correction
 \freshSevenAbs{}\% and \freshOneAbs{}\%. The deficit the teacher fills is an order of magnitude
 larger than the gains above it.
 
-\paragraph{The record must keep part of its hard label.}
-The result above uses the hybrid target of Eq.~\eqref{eq:hybrid}. The fully soft target decides
-how far it can be pushed. At $v=1$\,d, \textsc{Distill-Only} beats \textsc{Wait} by
-\doOneSmallAbs{}\% at the two smallest capacities and loses to it by \doOneLargeAbs{}\% at the
-three largest, crossing over between A1 and A2 at every join delay as Fig.~\ref{fig:gain} shows.
-A purely soft target plausibly acts as a regulariser, supplying a variance reduction that a
-small model can use and a larger one no longer needs~\cite{menon2021statistical}. The practical
-consequence cuts against convenience: a record carrying no hard label is the most portable
-object a consolidated pipeline could ask for, and it is exactly the one that fails at the
-capacities worth serving. At $v=7$\,d the crossover is weaker and non-monotone, averaging
-\doSevenLargeAbs{}\% across the three largest rungs, so we state the rule for the one-day window
-and do not extrapolate it. \textsc{Correct-Distill} beats \textsc{Distill-Only} in all
+\paragraph{At small capacity the hard label can be dropped entirely.}
+The result above uses the hybrid target of Eq.~\eqref{eq:hybrid}. The fully soft target of
+\textsc{Distill-Only}, which carries no observed label at all, shows how far the idea can be
+pushed. At the two smallest served capacities it beats \textsc{Wait} in all \doSmallBeat{} of
+\doSmallN{} cells, by \doOneSmallAbs{}\% at $v=1$\,d and \doSevenSmallAbs{}\% at $v=7$\,d. That
+regime is the one retrieval and other early-funnel stages operate in, and the target suits it:
+the record reduces to features and a single number, emission needs no join against the observed
+outcome, and the pipeline still gains over waiting.
+
+The target does not carry to the larger rungs. At $v=1$\,d it loses to \textsc{Wait} by
+\doOneLargeAbs{}\% across the three largest capacities, crossing over between A1 and A2 at every
+join delay as Fig.~\ref{fig:gain} shows, and at $v=7$\,d it stays ahead by only
+\doSevenLargeAbs{}\%. A purely soft target plausibly acts as a regulariser, supplying a variance
+reduction that a small model can use and a larger one no longer
+needs~\cite{menon2021statistical}. Where capacity is ample, retaining the observed positive is
+what pays: \textsc{Correct-Distill} beats \textsc{Distill-Only} in all
 \cdBeatDo{} cells, and \textsc{Wait} in \cdBeatWait{} of \nCellsBoth{}. The \cdNegN{} exceptions
 both occur at $v=1$\,d and $o=5$ minutes, at rungs \cdNegWhere{}, the worse by
 \cdNegWorstAbs{}\%, and neither survives correction. Their location is coherent rather than
@@ -130,20 +134,30 @@ protocol. We report it for completeness and make no claim about its published st
 mechanism behaves as described, but the floor it is read against sits well above every other
 method's in our harness.
 
-\paragraph{The teacher need not be large, costly or retrained.}
-Table~\ref{tab:baselines} uses the large teacher. Substituting the small one changes little.
-\textsc{Correct-Distill} gains \tchSmallCdSevenAbs{}\% with the small teacher against
-\tchLargeCdSevenAbs{}\% with the large one at seven days, and \tchSmallCdOneAbs{}\% against
-\tchLargeCdOneAbs{}\% at one. Averaged over all \nCellsBoth{} cells the large teacher moves the
-result by \teachCdMean{}\,pp for \textsc{Correct-Distill} and \teachDoMean{}\,pp for
-\textsc{Distill-Only}. A \teacherRatio{}-fold increase in teacher parameters and a
-\teacherFlopRatio{}-fold increase in teacher compute therefore buy nothing measurable, and the
-smaller teacher is if anything marginally ahead. Holding parameters fixed while spending
-\wideFlopRatio{} times more teacher compute is equally inert. The teacher's learning rate is
-verified rather than inherited: the default beats a rate ten times smaller in every cell tested
-and matches one twice as large, so the null result reflects a saturated teacher rather than an
-untuned one. Finally, fixing the teacher after causal initialisation, so that it is shipped as a
-static model rather than maintained as a second training job, costs \frzCostOneAbs{} and
-\frzCostSevenAbs{}\,pp. The fixed-teacher arm still beats \textsc{Wait} in \frzBeat{} of
+\paragraph{Robustness to the teacher, and what bounds it on this corpus.}
+Table~\ref{tab:baselines} uses the deep-trunk teacher, and substituting the MLP teacher changes
+little. \textsc{Correct-Distill} gains \tchSmallCdSevenAbs{}\% with the MLP teacher against
+\tchLargeCdSevenAbs{}\% with the deep-trunk one at seven days, and \tchSmallCdOneAbs{}\% against
+\tchLargeCdOneAbs{}\% at one; over all \nCellsBoth{} cells the two architectures differ by
+\teachCdMean{}\,pp for \textsc{Correct-Distill} and \teachDoMean{}\,pp for
+\textsc{Distill-Only}. Holding parameters fixed while spending \wideFlopRatio{} times more
+teacher compute stays inside the same margin. The teacher's learning rate is verified rather
+than inherited: the default beats a rate ten times smaller in every cell tested and matches one
+twice as large, so the insensitivity describes a converged teacher rather than an untuned one.
+The practical reading is that the method does not depend on a particular teacher, which is what
+makes it portable across pipelines.
+
+That insensitivity is a property of the corpus as much as of the method. Criteo carries eight
+integer and nine hashed categorical fields with no creative, content or user-history signal, so
+$P(\Yv{=}1\mid\Yo{=}0,x)$ is close to exhausted by a modest architecture and further teacher
+capacity has little left to condition on. A production corrector would see far richer features
+and longer histories, and a cross-objective foundation model trained on fully matured
+outcomes~\cite{meta2025gem} is precisely the artefact positioned to supply it. We expect such a
+teacher to sharpen the corrector and widen the gains reported here, but that is an expectation
+about a setting we did not measure, and we claim only the Criteo result.
+
+Finally, fixing the teacher after causal initialisation, so that it is shipped as a static model
+rather than maintained as a second training job, costs \frzCostOneAbs{} and
+\frzCostSevenAbs{}\,pp, and the fixed-teacher arm still beats \textsc{Wait} in \frzBeat{} of
 \frzN{} cells. Adoption therefore does not require standing up a continuously retrained
 auxiliary alongside the served model.

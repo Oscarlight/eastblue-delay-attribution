@@ -5,9 +5,10 @@ An objective's attribution window is fixed by the business definition of a conve
 join delay its pipeline adopts is not, and the two can be set independently. Shortening the join
 delay by three orders of magnitude improves accuracy rather than degrading it, recovers
 \recoverSeven{}\% of what a label-peeking oracle attains at seven days, and helps most where the
-funnel is slowest, provided the record retains part of its hard label. The fully label-free
-target, which would be the most convenient object for a consolidated pipeline to carry, is the
-one that fails above the smallest capacities.
+funnel is slowest. Which target to write depends on the capacity being served: above the two
+smallest rungs the record should retain its observed positive, while at small capacity the
+label can be dropped and the teacher's estimate carried alone, which suits retrieval and other
+early-funnel stages and is simpler to emit.
 
 The immediate consequence is for training several ranking objectives in one model, an active
 industrial direction~\cite{meta2025gem} whose first obstacle is a pipeline obstacle rather than
@@ -20,9 +21,9 @@ $\wt_k$ is a function the pipeline evaluates rather than an outcome it awaits. \
 reaches comparable accuracy, so the choice between them is architectural: \textsc{Ulc} fits each
 $w_k$ inside the served model's training loop, turning $K$ objectives into $K$ auxiliary heads
 on one optimiser, whereas a teacher places each $w_k$ upstream with a single number written onto
-a record as its only interface. Section~\ref{sec:exp} shows that upstream model need not be
-large, expensive, or retrained while the student trains, so consolidation adds $K$ static model
-files to the build rather than $K$ running training jobs.
+a record as its only interface. Section~\ref{sec:exp} shows the result is stable across teacher
+architectures and survives freezing the teacher after initialisation, so consolidation can add
+$K$ static model files to the build rather than $K$ running training jobs.
 
 Three limits bound the claim. We ran one objective at a time, so we have no evidence on
 interference between objectives sharing a trunk, which is the central risk in the multi-task

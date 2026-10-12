@@ -214,6 +214,12 @@ def build() -> dict:
         m[f"do{tag}Large"] = f"{mean_of(V4, DO, task, LARGE):+.2f}"
         m[f"do{tag}Mean"] = f"{mean_of(V4, DO, task):+.2f}"
 
+    # A mean over the small rungs could hide a split, and Distill-Only at small capacity is a
+    # headline claim, so count the cells outright. SMALL x OS x TASKS = 2 x 3 x 2 = 12.
+    small_cells = [gains(V4, DO, t, o, c).mean() for t in TASKS for o in OS for c in SMALL]
+    m["doSmallBeat"] = str(sum(1 for g in small_cells if g > 0))
+    m["doSmallN"] = str(len(small_cells))
+
     # ---- anchors ---------------------------------------------------------------------------
     for tag, task in (("One", "1d"), ("Seven", "7d")):
         m[f"fresh{tag}"] = f"{mean_of(V4, FRESH, task):+.1f}"
