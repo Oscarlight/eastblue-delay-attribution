@@ -62,10 +62,13 @@ variance on one data origin, establishing precision rather than generalisation.
 \begin{figure}[t]
 \centering
 \includegraphics[width=\textwidth]{figs/gain}
-\caption{$\NE$ gain over \textsc{Wait} against served capacity, one panel per join delay. Above
-the line beats the conventional per-objective pipeline. Colour denotes the target and dash
-denotes the attribution window, with \textsc{Oracle} drawn at $v=7$\,d to bound the panel. Bars
-give the standard deviation of the per-seed differences.}
+\caption{Relative $\NE$ reduction against \textsc{Wait} as a function of served capacity, at
+join delay (A)~$o=5$, (B)~$o=30$ and (C)~$o=90$ minutes. Above the zero line beats the
+conventional per-objective pipeline. Colour denotes the target and line style the attribution
+window; \textsc{Oracle}, which labels an early record with the matured outcome and is therefore
+not causal, is drawn at $v=7$\,d to bound each panel. Shading on a curve is the standard
+deviation of the per-seed paired differences; the grey vertical band marks the two smallest
+capacities, the regime in which \textsc{Distill-Only} needs no hard label.}
 \label{fig:gain}
 \end{figure}
 
@@ -115,24 +118,28 @@ they comply.
 
 \begin{table}[t]
 \centering
-\caption{Mean $\NE$ gain over \textsc{Wait} in percent, across the \nCells{} cells of each
-window.}
+\caption{Every reproduced method, as mean $\NE$ reduction against \textsc{Wait} in percent over
+the \nCells{} cells of each window, with the records-per-click audit of
+Section~\ref{sec:approach}. Higher is better and the best of each block is in bold.
+\textsc{IF-DFM} was audited for duplication but not run for accuracy. $^{\dagger}$At the two
+smallest served capacities \textsc{Distill-Only} gains \doOneSmallAbs{}\% at $v{=}1$\,d and
+\doSevenSmallAbs{}\% at $v{=}7$\,d; the figures in the table average over all five.}
 \label{tab:baselines}
 \input{generated/tab_baselines}
 \end{table}
 
-Two conclusions follow. First, the one-record rule is inexpensive. Only \textsc{\bestNonSeven}
-outperforms our method, and it writes \vanillaDup{} records per click to do so, buying
-\priceSeven{}\,pp at seven days and \priceOne{}\,pp at one. Second, among methods that can
-actually run on such a stream, ours is the strongest. \textsc{Ulc}~\cite{wang2023unbiased}
-shares Eq.~\eqref{eq:hybrid} and differs only in how the corrector is estimated; we lead it by
-\ourUlcSeven{}\,pp at seven days, winning \ourUlcWinSeven{} of \nCells{} cells, and match it at
-one day, winning \ourUlcWinOne{} of \nCells{}. The case for an offline teacher over an online
-corrector is therefore architectural rather than one of accuracy, as
-Section~\ref{sec:conclusion} argues. \textsc{Twice} does not reproduce competitively under our
-protocol. We report it for completeness and make no claim about its published standing; its
-mechanism behaves as described, but the floor it is read against sits well above every other
-method's in our harness.
+Three conclusions follow. First, the one-record rule is inexpensive. Only
+\textsc{\bestNonSeven} outperforms our method, and it writes \vanillaDup{} records per click to
+do so, buying \priceSeven{}\,pp at seven days and \priceOne{}\,pp at one. Second, among methods
+that can actually run on such a stream, ours is the strongest.
+\textsc{Ulc}~\cite{wang2023unbiased} shares Eq.~\eqref{eq:hybrid} and differs only in how the
+corrector is estimated; we lead it by \ourUlcSeven{}\,pp at seven days, winning
+\ourUlcWinSeven{} of \nCells{} cells, and match it at one day, winning \ourUlcWinOne{} of
+\nCells{}. The case for an offline teacher over an online corrector is therefore architectural
+rather than one of accuracy, as Section~\ref{sec:conclusion} argues. Third, duplication does not
+buy accuracy on its own: \textsc{Ftp} and \textsc{Miss} write \maxDup{} and 3.05 records per
+click and still place below \textsc{Defuse} at 1.03, so the gap our method gives up is the price
+of the constraint rather than of the correction.
 
 \paragraph{Robustness to the teacher, and what bounds it on this corpus.}
 Table~\ref{tab:baselines} uses the deep-trunk teacher, and substituting the MLP teacher changes

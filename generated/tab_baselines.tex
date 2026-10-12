@@ -1,11 +1,21 @@
-\begin{tabular}{@{}lcrr@{}}
+\begin{tabular}{@{}lrrr@{}}
 \toprule
-Method & Single-visit & $v{=}1$\,d & $v{=}7$\,d \\
+Method & Records/click & $v{=}1$\,d & $v{=}7$\,d \\
 \midrule
-\textsc{DEFUSE} & no & +0.75 & +2.23 \\
-\textsc{Fsiw}~\cite{yasui2020feedback} & yes & -0.45 & +0.31 \\
-\textsc{Twice} & yes & -28.89 & -29.71 \\
-\textsc{Ulc}~\cite{wang2023unbiased} & yes & +0.56 & +1.84 \\
-\textbf{\textsc{Correct-Distill} (ours)} & \textbf{yes} & \textbf{+0.57} & \textbf{+1.97} \\
+\multicolumn{4}{@{}l}{\emph{Revise the record after writing it}} \\
+\textsc{DEFUSE} & 1.03 & \textbf{+0.75} & \textbf{+2.23} \\
+\textsc{DFM}~\cite{chapelle2014modeling} & 1.33 & +0.72 & +2.20 \\
+\textsc{ES{-}DFM} & 1.03 & +0.73 & +2.18 \\
+\textsc{MISS} & 3.05 & $-$0.15 & +2.07 \\
+\textsc{DDFM} & 1.89 & +0.08 & +1.81 \\
+\textsc{FTP} & 4.00 & +0.69 & +1.75 \\
+\textsc{PI} & 2.00 & +0.47 & +1.33 \\
+\textsc{IF{-}DFM} & 2.79 & n/a & n/a \\
+\midrule
+\multicolumn{4}{@{}l}{\emph{One record per click}} \\
+\textbf{\textsc{Correct-Distill} (ours)} & 1.00 & \textbf{+0.57} & \textbf{+1.97} \\
+\textsc{ULC}~\cite{wang2023unbiased} & 1.00 & +0.56 & +1.84 \\
+\textbf{\textsc{Distill-Only} (ours)}$^{\dagger}$ & 1.00 & $-$0.07 & +0.40 \\
+\textsc{FSIW}~\cite{yasui2020feedback} & 1.00 & $-$0.45 & +0.31 \\
 \bottomrule
 \end{tabular}

@@ -43,9 +43,8 @@ applied whenever a label reverses. The plain re-ingestion
 baseline~\cite{ktena2019addressing,gu2021real} measures \vanillaDup{} and fails the same
 criterion. Duplication is a property of emission logic rather than of the model, and the audit
 returns identical counts at the smallest and largest served capacities. Only \passList{} satisfy
-Rule~2. Of these, \textsc{Fsiw} corrects the loss and \textsc{Twice} adds a prediction head on
-the conversion clock, both leaving the target itself untouched. \textsc{Ulc} alone changes the
-target, which makes it our closest comparator.
+Rule~2. Of the two, \textsc{Fsiw} corrects the loss and leaves the target itself untouched,
+while \textsc{Ulc} changes the target, which makes it our closest comparator.
 
 \paragraph{Four targets.}
 What remains is a choice of what the single frozen target should contain. We study four answers,

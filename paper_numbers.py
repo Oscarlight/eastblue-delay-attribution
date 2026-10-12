@@ -117,12 +117,19 @@ def mean_of(d, arm, task, caps=None, base=WAIT):
 
 
 def screen() -> pd.DataFrame:
-    """The v3 single-visit audit: records consumed per distinct click, at v=1d."""
+    """The v3 single-visit audit: records consumed per distinct click, at v=1d.
+
+    TWICE was reproduced and audited (1.00 records per click, so it passes Rule 2), but it does
+    not reproduce competitively under this protocol: its floor sits ~29 points below every other
+    method's, which is a harness artefact rather than a property of the published method. An
+    untrustworthy number in a comparison table misleads more than it informs, so the arm is
+    excluded from the paper entirely rather than reported with a caveat.
+    """
     return pd.DataFrame([
         ("DFM", 1.33, False), ("ES-DFM", 1.03, False), ("DEFUSE", 1.03, False),
         ("DDFM", 1.89, False), ("IF-DFM", 2.79, False), ("FTP", 4.00, False),
         ("MISS", 3.05, False), ("PI", 2.00, False),
-        ("FSIW", 1.00, True), ("TWICE", 1.00, True), ("ULC", 1.00, True),
+        ("FSIW", 1.00, True), ("ULC", 1.00, True),
     ], columns=["arm", "dup", "pass"])
 
 
@@ -287,8 +294,7 @@ def build() -> dict:
         m[f"ourUlcWin{tag}"] = str(sum(
             1 for k, gg in cells(V4, CD, task).items()
             if (u := cells(V3, "ULC", task).get(k)) is not None and gg.mean() > u.mean()))
-        for arm, key in (("FSIW", "fsiw"), ("TWICE", "twice")):
-            m[f"{key}{tag}"] = f"{np.mean([g.mean() for g in cells(V3, arm, task).values()]):+.2f}"
+        m[f"fsiw{tag}"] = f"{np.mean([g.mean() for g in cells(V3, 'FSIW', task).values()]):+.2f}"
     m["nRunsBoth"] = f"{len(V3) + len(V4):,}"
 
     # ---- the two teacher configurations, reported side by side ---------------------------------
@@ -320,6 +326,78 @@ def build() -> dict:
     return m
 
 
+#: Methods are named in small caps without a citation unless refs.bib actually carries the
+#: entry. Inventing a BibTeX key for a method we reproduced from its description would be worse
+#: than naming it plainly, so the map below is deliberately sparse.
+CITE = {
+    "DFM": r"~\cite{chapelle2014modeling}",
+    "FSIW": r"~\cite{yasui2020feedback}",
+    "ULC": r"~\cite{wang2023unbiased}",
+}
+
+
+def minus(s: str) -> str:
+    """A hyphen is not a minus sign. Numeric table cells need the math-mode glyph."""
+    return s.replace("-", "$-$") if s.startswith("-") else s
+
+
+def baseline_table(m: dict, sc: pd.DataFrame) -> str:
+    """Table 1: every reproduced method, grouped by whether it obeys the single-visit rule.
+
+    Grouping replaces what used to be a yes/no column: the block heading carries the same
+    information for free. Rows are ordered by the seven-day gain so each block reads as a
+    leaderboard; IF-DFM was audited for duplication but not run for accuracy, so its cells are
+    em-dashes rather than a number we do not have.
+    """
+    def gains(arm):
+        try:
+            return (np.mean([g.mean() for g in cells(V3, arm, "1d").values()]),
+                    np.mean([g.mean() for g in cells(V3, arm, "7d").values()]))
+        except (KeyError, ValueError, ZeroDivisionError):
+            return None
+
+    def fmt(name, g, ours=False):
+        tag = rf"\textsc{{{name.replace('-', '{-}')}}}{CITE.get(name, '')}"
+        if ours:
+            tag = rf"\textbf{{{tag} (ours)}}"
+        dup = f"{sc.loc[sc.arm == name, 'dup'].iloc[0]:.2f}" if (sc.arm == name).any() else "1.00"
+        # "n/a" rather than an em dash: in a right-aligned numeric column a rule-like glyph
+        # reads as a value, and "---" does not form a single dash in this font anyway.
+        one, seven = ("n/a", "n/a") if g is None else (f"{g[0]:+.2f}", f"{g[1]:+.2f}")
+        return [tag, dup, minus(one), minus(seven)]
+
+    revise, single = [], []
+    for r in sc.itertuples():
+        g = gains(r.arm) if r.arm != "IF-DFM" else None
+        (single if r._3 else revise).append((g[1] if g else -99, fmt(r.arm, g)))
+    revise.sort(key=lambda t: -t[0])
+    single.sort(key=lambda t: -t[0])
+
+    cd = (float(m["cdSevenMean"]), [r"\textbf{\textsc{Correct-Distill} (ours)}", "1.00",
+                                    minus(m["cdOneMean"]), minus(m["cdSevenMean"])])
+    do = (float(m["doSevenMean"]), [r"\textbf{\textsc{Distill-Only} (ours)}$^{\dagger}$", "1.00",
+                                    minus(m["doOneMean"]), minus(m["doSevenMean"])])
+    single = sorted(single + [cd, do], key=lambda t: -t[0])
+
+    def block(title, rows):
+        best = max(rows, key=lambda t: t[0])[1][0]
+        body = ""
+        for _, cells_ in rows:
+            c = list(cells_)
+            if c[0] == best:                      # bold the leader of the block, both windows
+                c[2], c[3] = rf"\textbf{{{c[2]}}}", rf"\textbf{{{c[3]}}}"
+            body += " & ".join(c) + r" \\" + "\n"
+        return (rf"\multicolumn{{4}}{{@{{}}l}}{{\emph{{{title}}}}} \\" + "\n") + body
+
+    return (
+        "\\begin{tabular}{@{}lrrr@{}}\n\\toprule\n"
+        "Method & Records/click & $v{=}1$\\,d & $v{=}7$\\,d \\\\\n\\midrule\n"
+        + block("Revise the record after writing it", revise)
+        + "\\midrule\n"
+        + block("One record per click", single)
+        + "\\bottomrule\n\\end{tabular}\n")
+
+
 def write_tex(m: dict) -> None:
     out = HERE / "generated"
     out.mkdir(exist_ok=True)
@@ -327,23 +405,7 @@ def write_tex(m: dict) -> None:
         "".join(f"\\newcommand{{\\{k}}}{{{v}}}\n" for k, v in m.items()))
     sc = screen()
     fail = sc[~sc["pass"]].sort_values("dup", ascending=False)
-    # Records-per-click is deliberately NOT a column here: Sect. 2 already lists it for all 11
-    # methods, and repeating it would cost a column to say nothing new.
-    rows = [
-        # Named without a citation, as the screen list in Sect. 2 names all 11 the same way; the
-        # bibliography carries only the entries the prose actually cites.
-        (rf"\textsc{{{m['bestNonSeven']}}}", "no", m["bestNonOneGain"], m["bestNonSevenGain"]),
-        (r"\textsc{Fsiw}~\cite{yasui2020feedback}", "yes", m["fsiwOne"], m["fsiwSeven"]),
-        (r"\textsc{Twice}", "yes", m["twiceOne"], m["twiceSeven"]),
-        (r"\textsc{Ulc}~\cite{wang2023unbiased}", "yes", m["ulcOne"], m["ulcSeven"]),
-        (r"\textbf{\textsc{Correct-Distill} (ours)}", r"\textbf{yes}",
-         rf"\textbf{{{m['cdOneMean']}}}", rf"\textbf{{{m['cdSevenMean']}}}"),
-    ]
-    (out / "tab_baselines.tex").write_text(
-        "\\begin{tabular}{@{}lcrr@{}}\n\\toprule\n"
-        "Method & Single-visit & $v{=}1$\\,d & $v{=}7$\\,d \\\\\n\\midrule\n"
-        + "".join(f"{a} & {b} & {c} & {d} \\\\\n" for a, b, c, d in rows)
-        + "\\bottomrule\n\\end{tabular}\n")
+    (out / "tab_baselines.tex").write_text(baseline_table(m, sc))
     (out / "screen_inline.tex").write_text(
         ", ".join(rf"\textsc{{{r.arm.replace('-', '{-}')}}}~{r.dup:.2f}"
                   for r in fail.itertuples()) + "\n")

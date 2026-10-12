@@ -25,8 +25,12 @@ HERE = Path(__file__).resolve().parent
 V4 = pd.read_parquet(HERE / "data" / "v4_all_runs.parquet")
 V3 = pd.read_parquet(HERE / "data" / "v3_all_runs.parquet")
 CAPS, OS, TASKS = ["A0", "A1", "A2", "A3", "A4"], [5, 30, 90], ["1d", "7d"]
-PDF = subprocess.run(["pdftotext", str(HERE / "main.pdf"), "-"],
-                     capture_output=True, text=True).stdout.replace("\n", " ")
+#: Table cells typeset negatives as math-mode "$-$", which pdftotext extracts as U+2212 rather
+#: than ASCII hyphen. Normalise so a claim string like "-0.45" still matches what reached the
+#: page; without this the table-row checks silently look for a glyph the PDF never contains.
+PDF = (subprocess.run(["pdftotext", str(HERE / "main.pdf"), "-"],
+                      capture_output=True, text=True).stdout
+       .replace("\n", " ").replace("−", "-"))
 
 OK: list[bool] = []
 
@@ -64,7 +68,7 @@ def main() -> None:
     print(f"checking main.pdf against {len(V4):,} v4 runs and {len(V3):,} v3 runs\n")
 
     # --- the screen (v3) -------------------------------------------------------------------
-    claim("methods screened / failing single-visit", "8 of 11", "11 published methods")
+    claim("methods screened / failing single-visit", "8 of 10", "10 published methods")
     claim("worst duplication", "4.00 records per click", "4.00")
 
     # --- Correct-Distill -------------------------------------------------------------------
@@ -178,9 +182,14 @@ def main() -> None:
         price = np.mean(V3G(best, t)) - np.mean([g.mean() for g in grid("DISTILL_T13", t).values()])
         claim(f"price of single-visit {tag} (vs {best})", f"{price:.2f} pp", f"{price:.2f}")
         assert price > 0, "paper says the non-compliant method is ahead"
-    for arm, key in (("FSIW", "Fsiw"), ("ULC", "Ulc"), ("TWICE", "Twice")):
-        v = np.mean(V3G(arm, "7d"))
-        claim(f"table row {arm} 7d", f"{v:+.2f}%", f"{v:+.2f}")
+    # Every accuracy cell of Table 1, re-derived here and read back off the page. TWICE is absent
+    # by design: it does not reproduce competitively in this harness, so the paper omits it
+    # rather than printing a number it cannot stand behind.
+    for arm in ("DFM", "ES-DFM", "DEFUSE", "DDFM", "FTP", "MISS", "PI", "FSIW", "ULC"):
+        for t in ("1d", "7d"):
+            v = np.mean(V3G(arm, t))
+            claim(f"table row {arm} {t}", f"{v:+.2f}%", f"{v:+.2f}")
+    assert "TWICE" not in PDF and "Twice" not in PDF, "TWICE must not appear in the paper"
     claim("combined run count", f"{len(V3) + len(V4):,}", f"{len(V3) + len(V4):,}")
 
     print(f"\n{sum(OK)}/{len(OK)} claims reproduce and appear in the PDF")
