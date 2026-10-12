@@ -1,26 +1,29 @@
-Conversion pipelines are split by speed: an upper-funnel onsite conversion arrives in minutes, a
-down-funnel offsite one in days. Each objective's \emph{attribution window} --- what counts as a
-conversion --- is conventionally also its \emph{join delay}, the age at which its training record
-is written, so every objective needs its own pipeline and is stale by its own window. We ask
-whether the two can be separated: can a long-window objective learn from records joined within
-90 minutes?
+Conversion pipelines in advertising are split by speed. An upper-funnel onsite conversion is
+observable within minutes of the click, while a down-funnel offsite conversion takes a day or
+more. Each objective defines an \emph{attribution window}, the elapsed time within which a
+conversion counts, and conventionally that window also fixes the \emph{join delay}, the age at
+which the click's training record is written. Tying the two together forces every objective onto
+its own pipeline, each as stale as the window it waited for. We ask whether they can be set
+independently: can an objective accountable to a seven-day window be trained from records joined
+within 90 minutes?
 
-Joining sooner records every in-flight conversion as a negative, and a single-visit stream, which
-trains each click at most once, cannot repair it later --- yet most published corrections do
-exactly that: of \nScreened{} methods we reproduce, \nFail{} write more than one record per click,
-up to \maxDup{}. The gap must instead be closed at write time, in production by a training-only
-foundation model such as GEM, here by a \teacherParams{}-parameter teacher.
+Writing records sooner labels every conversion still in flight as a negative, and a streaming
+pipeline that trains each click at most once cannot revise them afterwards, yet most published
+corrections do exactly that: of \nScreened{} methods we reproduce, \nFail{} write more than one
+record per click, up to \maxDup{}. The deficit must instead be filled when the record is
+written, by an estimate from a model trained on matured outcomes.
 
-On the Criteo Delayed Feedback Dataset, across five served capacities (\capMin{}--\capMax{}
-parameters, \flopMin{}--\flopMax{} MFLOPs), three join delays and \seedsCore{} seeds, we compare
-three targets: the matured label (Wait), the teacher's estimate alone (Distill-Only), and the
-observed label with only its negatives softened (Correct-Distill). Against a Wait baseline of
-$\NE$ \waitNeMin{}--\waitNeMax{}, Distill-Only at one day lowers $\NE$ by \doOneSmallAbs{}\% at
-the two smallest capacities but raises it by \doOneLargeAbs{}\% at the three largest. Correct-Distill
-beats Distill-Only in all \nCellsBoth{} configurations and Wait in \cdBeatWait{}, lowering $\NE$
-by \cdSevenMinAbs{}--\cdSevenMaxAbs{}\% on the seven-day task and \cdOneMeanAbs{}\% on average
-on the one-day task --- \recoverSeven{}\% and \recoverOne{}\% of what a label-peeking oracle recovers.
-The gain grows as the funnel slows and needs no larger teacher: a \teacherRatio{}$\times$ larger
-teacher and a \wideFlopRatio{}$\times$ more expensive one each move it by under
-\teachDoAbs{}\,pp. Decoupling the two delays removes the main obstacle to training objectives
-with different attribution windows on one fresh stream.
+On the Criteo Delayed Feedback Dataset we compare three targets across \nRunsBoth{} runs: the
+matured label, denoted \textsc{Wait}; the teacher's estimate alone, \textsc{Distill-Only}; and
+the observed label with only its negatives softened, \textsc{Correct-Distill}. We vary served
+capacity over \capMin{} to \capMax{} parameters, three join delays, two attribution windows, and
+two teacher architectures differing \teacherRatio{}-fold in size. Against a \textsc{Wait}
+baseline of $\NE$ \waitNeMin{} to \waitNeMax{}, \textsc{Distill-Only} reduces $\NE$ by
+\doOneSmallAbs{}\% at the two smallest capacities but increases it by \doOneLargeAbs{}\% at the
+three largest. \textsc{Correct-Distill} improves on \textsc{Distill-Only} in all \nCellsBoth{}
+configurations and on \textsc{Wait} in \cdBeatWait{}, reducing $\NE$ by \cdSevenMeanAbs{}\% at
+seven days and \cdOneMeanAbs{}\% at one, which is \recoverSeven{}\% and \recoverOne{}\% of what
+a label-peeking oracle attains. It is also the strongest method that obeys the one-record rule,
+and the larger teacher does not help: it changes the result by \teachCdAbs{}\,pp. Setting the
+join delay independently of the attribution window therefore removes the obstacle to training
+objectives with different windows on a single fresh stream.

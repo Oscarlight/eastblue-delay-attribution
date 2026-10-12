@@ -261,17 +261,6 @@ def build() -> dict:
     m["cdUlcNs"] = str(sum(p > 0.05 for p in ps))
     m["cdUlcN"] = str(len(ps))
 
-    # Unsigned twins for prose where a verb already carries the direction. Writing "raises it by
-    # -0.51%" is a double negative, and "+0.48--+2.68%" is unreadable as a range; the sign stays
-    # only where a signed quantity is genuinely being reported, as in "moves the gain by -0.043".
-    for k in ("doOneSmall", "doOneLarge", "doSevenSmall", "doSevenLarge",
-              "cdOneMean", "cdSevenMean", "cdSevenMin", "cdSevenMax", "cdOneMin", "cdOneMax",
-              "oracleOne", "oracleSeven", "freshOne", "freshSeven", "cdNegWorst",
-              "frzCostOne", "frzCostSeven", "hybOne", "hybSeven", "wideOne", "wideSeven",
-              "baseOneThirty", "baseSevenThirty", "lrLowOne", "lrLowSeven",
-              "lrHighOne", "lrHighSeven"):
-        m[k + "Abs"] = m[k].lstrip("+-")
-
     # ---- published baselines, from v3, on the same scale --------------------------------------
     # v3 and v4 are directly comparable: v4's harness is a frozen copy of v3's, and the Wait arm
     # -- which instantiates no teacher and so cannot be touched by anything v4 changed --
@@ -295,6 +284,29 @@ def build() -> dict:
         for arm, key in (("FSIW", "fsiw"), ("TWICE", "twice")):
             m[f"{key}{tag}"] = f"{np.mean([g.mean() for g in cells(V3, arm, task).values()]):+.2f}"
     m["nRunsBoth"] = f"{len(V3) + len(V4):,}"
+
+    # ---- the two teacher configurations, reported side by side ---------------------------------
+    # The campaigns differ in teacher ARCHITECTURE, not merely size: the small teacher is an
+    # 8-dimensional embedding table under a two-layer MLP, the large one a 48-dimensional table
+    # under a deep interaction trunk. Both are reported so the reader sees two datapoints rather
+    # than one configuration plus a robustness footnote.
+    for tag, task in (("One", "1d"), ("Seven", "7d")):
+        for who, small_arm, large_arm in (("Cd", "DISTILL_Tmlp", CD), ("Do", "DISTILL_pvmlp", DO)):
+            m[f"tchSmall{who}{tag}"] = f"{mean_of(V4, small_arm, task):+.2f}"
+            m[f"tchLarge{who}{tag}"] = f"{mean_of(V4, large_arm, task):+.2f}"
+
+    # Unsigned twins for prose where a verb already carries the direction. Writing "raises it by
+    # -0.51%" is a double negative, and "+0.48--+2.68%" is unreadable as a range; the sign stays
+    # only where a signed quantity is genuinely being reported, as in "moves the gain by -0.043".
+    for k in ("doOneSmall", "doOneLarge", "doSevenSmall", "doSevenLarge",
+              "cdOneMean", "cdSevenMean", "cdSevenMin", "cdSevenMax", "cdOneMin", "cdOneMax",
+              "oracleOne", "oracleSeven", "freshOne", "freshSeven", "cdNegWorst",
+              "frzCostOne", "frzCostSeven", "hybOne", "hybSeven", "wideOne", "wideSeven",
+              "baseOneThirty", "baseSevenThirty", "lrLowOne", "lrLowSeven",
+              "lrHighOne", "lrHighSeven",
+              "tchSmallCdOne", "tchSmallCdSeven", "tchLargeCdOne", "tchLargeCdSeven",
+              "tchSmallDoOne", "tchSmallDoSeven", "tchLargeDoOne", "tchLargeDoSeven"):
+        m[k + "Abs"] = m[k].lstrip("+-")
 
     bad = [k for k in m if not k.isalpha()]
     if bad:

@@ -73,7 +73,7 @@ def main() -> None:
     # the abstract renders this as "Wait in 28"; section 5 as "below Wait in 2 of 30"
     claim("Correct-Distill beats Wait", f"{pos} of {len(cd)}", f"Wait in {pos}")
     claim("...and section 5 names the exceptions", f"{len(cd)-pos} of {len(cd)}",
-          f"below Wait in {len(cd)-pos} of {len(cd)}")
+          f"The {len(cd)-pos} exceptions")
     do = grid("DISTILL_pv")
     beats = sum(1 for k in cd if cd[k].mean() > do[k].mean())
     claim("Correct-Distill beats Distill-Only", f"{beats} of {len(cd)}", None)

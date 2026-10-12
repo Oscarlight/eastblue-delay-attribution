@@ -1,36 +1,49 @@
 \section{Experimental Setup}
 \label{sec:setup}
 
-\paragraph{Data and protocol.} The public Criteo conversion logs released
-with~\cite{chapelle2014modeling}. Clicks span 60 days; days $[0,30)$ initialise the model
-causally and days $[30,60)$ are the streaming period, divided into \nCohorts{} hourly rounds
-giving \nEval{} scored clicks at a base conversion rate of \baseRate{}. Learning rates are
-selected per arm and per cell from a seven-point grid on a held-out slice of the initialisation
-period, before any streaming evaluation, and pinned across seeds. The teacher's rate is fixed
-and decoupled from the student's, so the student's sweep tunes one model rather than two.
+\paragraph{Data and protocol.} We use the public Criteo conversion logs released
+with~\cite{chapelle2014modeling}, the only large public advertising corpus carrying per-click
+conversion timestamps. Clicks span 60 days. Days $[0,30)$ initialise the model causally and days
+$[30,60)$ form the streaming period, divided into \nCohorts{} hourly rounds yielding \nEval{}
+scored clicks at a base conversion rate of \baseRate{}. Learning rates are selected per arm and
+per cell from a seven-point grid on a held-out slice of the initialisation period, before any
+streaming evaluation, then pinned across seeds. The teacher's rate is fixed and decoupled from
+the student's, so the student's sweep tunes one model rather than two.
 
-\paragraph{Axes.} Two \emph{attribution windows}, $v=1$\,d and $7$\,d, standing for a fast and a
-slow funnel; the contrast between them is the paper's point, so we never average across them.
-Three \emph{join delays}, $o\in\{5,30,90\}$ minutes. Five \emph{served capacities} from
-\capMin{} to \capMax{} parameters and \flopMin{}--\flopMax{} MFLOPs per inference --- the two do
-not track, the smallest rungs differing 5.2$\times$ in parameters at identical compute, so we
-report both. \seedsCore{} seeds on the three targets and \seedsOther{} elsewhere.
+\paragraph{Axes.} Two attribution windows, $v=1$\,d and $v=7$\,d, stand for a fast and a slow
+funnel; the contrast between them is the paper's point, so we never average across them. Three
+join delays are used, $o\in\{5,30,90\}$ minutes. Five served capacities range from \capMin{} to
+\capMax{} parameters and \flopMin{} to \flopMax{} MFLOPs per inference. Parameters and compute
+do not track each other, since the two smallest rungs differ 5.2-fold in parameters at identical
+compute, so we report both rather than let one stand for the other.
 
-\paragraph{Two campaigns, one axis.} The evidence is \nRunsBoth{} runs: \nRunsThree{} over
-\nArmsThree{} arms reproducing the published methods, and \nRunsFour{} over \nArmsFour{} arms
-studying the three targets at the larger teacher. The second uses a frozen copy of the first's
-harness, and \textsc{Wait} --- which instantiates no teacher, so nothing the second campaign
-changed can reach it --- reproduces the first to zero difference across all 150 shared cells.
-Reporting every arm against \textsc{Wait} within its own run is what puts both campaigns on one
-axis, rather than an assumption that two runs are comparable.
+\paragraph{Two teacher architectures.} The fourth axis is the teacher, and we study two
+configurations differing in architecture rather than only in scale. The \emph{small} teacher
+places 8-dimensional embedding tables under a two-layer perceptron, giving
+\teacherSmallParams{} parameters at \teacherSmallFlops{} MFLOPs. The \emph{large} teacher places
+48-dimensional tables under a deep interaction trunk, giving \teacherParams{} parameters at
+\teacherFlops{} MFLOPs, a \teacherRatio{}-fold increase in size and \teacherFlopRatio{}-fold in
+compute. Reporting both is what licenses any claim about whether teacher capacity matters.
 
-\paragraph{Metric and statistics.} Normalised entropy against $\Yv$, lower better, pooled over
-all scored clicks rather than averaged over rounds --- a per-round average normalises each hour
-by its own base rate and discards diurnal variation a model can legitimately predict. We report
-the relative reduction against \textsc{Wait} within a cell, computed per seed and then averaged.
-Seeds differ only in initialisation and minibatch order, so seed $i$ of two arms is a matched
-pair: paired $t$-test within each cell, Holm--Bonferroni across the \nCells{} cells of a
-contrast, counting only cells whose \emph{gain} is positive and survives. Dispersion is small
-away from \textsc{Fresh} (median $\NE$ sd \seedSdMed{}, maximum \seedSdMax{}); \textsc{Fresh}
-reaches \seedSdFresh{} at $o=5$ minutes, which is a result rather than a nuisance. Seeds measure
-initialisation variance on one data origin: precision, not generalisation.
+\paragraph{Scale and comparability.} The evidence comprises \nRunsBoth{} runs in two campaigns:
+\nRunsThree{} runs over \nArmsThree{} arms reproducing the published methods and establishing
+the small-teacher results, and \nRunsFour{} runs over \nArmsFour{} arms studying the three
+targets at the large teacher, with \seedsCore{} seeds on the headline arms and \seedsOther{}
+elsewhere. The second campaign runs a frozen copy of the first's harness. \textsc{Wait}
+instantiates no teacher, so nothing the second campaign changed can reach it, and it reproduces
+the first to zero difference across all 150 shared cells. Reporting every arm as a gain against
+\textsc{Wait} within its own campaign is therefore what places both on a single axis, rather
+than an assumption that two runs are comparable.
+
+\paragraph{Metric and statistics.} We report normalised entropy against $\Yv$, lower being
+better, pooled over all scored clicks rather than averaged over rounds, since a per-round
+average would normalise each hour by its own base rate and discard diurnal variation a model can
+legitimately predict. Results are the relative reduction against \textsc{Wait} within a cell,
+computed per seed and then averaged. Seeds differ only in initialisation and minibatch order, so
+seed $i$ of two arms forms a matched pair: we use a paired $t$-test within each cell and
+Holm--Bonferroni correction across the \nCells{} cells of a contrast, counting only cells whose
+gain is positive and survives. Seed dispersion is small away from \textsc{Fresh}, with median
+$\NE$ standard deviation \seedSdMed{} and maximum \seedSdMax{}. \textsc{Fresh} reaches
+\seedSdFresh{} at $o=5$ minutes, a finding rather than a nuisance: an uncorrected censored
+target at the shortest join delay is not a stable estimator. Seeds measure initialisation
+variance on one data origin, establishing precision rather than generalisation.
