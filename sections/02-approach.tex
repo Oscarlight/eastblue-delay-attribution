@@ -1,0 +1,90 @@
+\section{Problem Setting and Proposed Approach}
+\label{sec:approach}
+
+A click $i$ occurs at time $C_i$ with features $x_i$ and, if it converts, does so after a delay
+$D_i>0$, with $D_i=\infty$ when it never converts. The attribution window $v$ belongs to the
+objective and fixes the target $\Yv_i=\mathbf{1}[D_i\le v]$, knowable only at $C_i+v$. The join
+delay $o$ belongs to the pipeline and fixes when the record is written, so the label available
+at that moment is
+\begin{equation}
+  \Yo_i \;=\; \mathbf{1}\!\left[D_i \le o\right] \;\le\; \Yv_i .
+  \label{eq:labels}
+\end{equation}
+Setting $o=v$ reproduces the conventional per-objective pipeline. Setting $o\ll v$ is what we
+want, and the inequality in Eq.~\eqref{eq:labels} is its price. We write
+$F(o)=P(D\le o\mid D\le v)$ for the fraction of the objective's conversions already visible when
+the record is written. Training proceeds in hourly rounds, each consuming the records released
+since the previous cut-off and then scoring every click of the following hour exactly once
+against the matured target $\Yv$. Every method is therefore judged on the business label
+whatever it trained on, and updating before predicting keeps the evaluation causal.
+
+\paragraph{Two rules a deployable pipeline must satisfy.}
+\textbf{Rule 1, causality.} A record's label must be computable at the moment the record is
+written, and must not change afterwards. Assigning $\Yv_i$ to a record written at $C_i+o$ uses
+an outcome that has not yet occurred. Such an arm is an upper reference, not a system, and we
+report it under the name \textsc{Oracle}. \textbf{Rule 2, single-visit.} Let $n_i$ be the number
+of times click $i$ enters the served model's loss over its lifetime. Rule~2 requires
+$\max_i n_i\le 1$. Without it the question is empty, since any join delay can be shortened by
+writing a record early and writing it again later. We take the maximum over clicks rather than
+the mean, because it is the existence of a second write that obliges the pipeline to support
+revision, and the rule governs the served stream only: charging training-time auxiliaries would
+eliminate \textsc{Fsiw}, \textsc{Ulc} and our own arms alike.
+
+\paragraph{Which published methods comply.}
+We reproduced \nScreened{} published methods from scratch under a single protocol and counted
+the records each one's served model consumes per distinct click. \nFail{} write more than
+one.\footnote{Two measurement traps both understate duplication. The denominator must be
+distinct clicks touched, since dividing records consumed by records released conflates
+duplication with variation in click volume. And a scoring window shorter than a method's revisit
+horizon cannot observe the revisit, so we score only clicks whose entire horizon lies inside the
+stream.} At $v=1$\,d the counts are \input{generated/screen_inline}. The highest,
+\maxVisitsArm{}, reaches \maxVisits{} writes for a single click, its mechanism being an update
+applied whenever a label reverses. The plain re-ingestion
+baseline~\cite{ktena2019addressing,gu2021real} measures \vanillaDup{} and fails the same
+criterion. Duplication is a property of emission logic rather than of the model, and the audit
+returns identical counts at the smallest and largest served capacities. Only \passList{} satisfy
+Rule~2. Of these, \textsc{Fsiw} corrects the loss and \textsc{Twice} adds a prediction head on
+the conversion clock, both leaving the target itself untouched. \textsc{Ulc} alone changes the
+target, which makes it our closest comparator.
+
+\paragraph{Four targets.}
+What remains is a choice of what the single frozen target should contain. We study four answers,
+sharing a pipeline, schedule, feature set and optimiser, and differing only in the target
+$\tilde y_i$ and in the age $\Delta$ at which the record is written. \textsc{Fresh} writes at
+$\Delta=o$ with $\tilde y_i=\Yo_i$, filling the deficit with nothing. \textsc{Wait} writes at
+$\Delta=v$ with $\tilde y_i=\Yv_i$, avoiding the deficit by deferring the write. It has a correct
+label on data of age $v$, and it is the conventional per-objective pipeline, so it is our
+baseline throughout. A practitioner who refuses both to duplicate records and to train on wrong
+labels is already running it. \textsc{Correct-Distill} writes at $\Delta=o$, keeps the observed
+label and softens only the observed negatives:
+\begin{equation}
+  \tilde y_i \;=\; \Yo_i + (1-\Yo_i)\,\wt(x_i),
+  \qquad
+  \wt(x) \approx P\!\left(\Yv{=}1 \,\middle|\, \Yo{=}0,\, x\right).
+  \label{eq:hybrid}
+\end{equation}
+An observed positive stays exactly $1$, and only the uncertain mass moves. This is the functional
+form used by \textsc{Ulc}~\cite{wang2023unbiased}; the two differ in how $\wt$ is estimated, so
+comparing them isolates the estimator and nothing else. \textsc{Distill-Only} goes further and
+regresses on $\pv(x)\approx P(\Yv{=}1\mid x)$ alone, so the record carries features and a number
+but no observation at all. Finally, \textsc{Oracle} writes at $\Delta=o$ but labels the record
+$\Yv_i$. It violates Rule~1 and is not deployable. We include it because it bounds what any
+causal correction could recover, which is what turns a positive result into a statement about
+remaining headroom.
+
+\paragraph{The teacher.}
+The estimates $\wt$ and $\pv$ come from a separate model trained on the \emph{matured} stream,
+in which a record enters at $C_i+v$ carrying $\Yv_i$. Both quantities are read out from one
+shared trunk. The teacher is \emph{evaluated} at the instant the student's record is written: at
+$C_i+o$ the student queries it and freezes the returned number into the record. Rule~1 is
+therefore satisfied even though the target is not binary. Softness is a different way of
+satisfying causality, not an exemption from it. The construction is distillation from privileged
+information~\cite{xu2019privileged}, in which the teacher observes the matured label that the
+student by construction cannot. Being used only during training, the teacher costs nothing at
+serving time, though it does mean served capacity is matched across arms while total training
+capacity is not, so we treat teacher architecture as an experimental axis. We also distinguish
+two ways of maintaining it. A \emph{continuously retrained} teacher keeps consuming the matured
+stream throughout the run, so deploying it means operating a second training job alongside the
+first. A \emph{fixed} teacher is trained once during causal initialisation and never updated, so
+deploying it means shipping a static model file. The distinction is invisible in
+Eq.~\eqref{eq:hybrid} and decisive operationally, so we measure both.

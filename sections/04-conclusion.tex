@@ -1,0 +1,32 @@
+\section{Concluding Remarks}
+\label{sec:conclusion}
+
+An objective's attribution window is fixed by the business definition of a conversion, but the
+join delay its pipeline adopts is not, and the two can be set independently. Shortening the join
+delay by three orders of magnitude improves accuracy rather than degrading it, recovers
+\recoverSeven{}\% of what a label-peeking oracle attains at seven days, and helps most where the
+funnel is slowest, provided the record retains part of its hard label. The fully label-free
+target, which would be the most convenient object for a consolidated pipeline to carry, is the
+one that fails above the smallest capacities.
+
+The immediate consequence is for training several ranking objectives in one model, an active
+industrial direction~\cite{meta2025gem} whose first obstacle is a pipeline obstacle rather than
+a modelling one. Under \textsc{Wait}, objective $k$'s record exists only at $C_i+v_k$, so a
+shared append-only stream must either write $K$ records per click, violating Rule~2 $K$ times
+over, or delay every objective until $\max_k v_k$, imposing the slowest funnel's staleness on
+the fastest. A single stream at one short join delay instead carries
+$\tilde y_{i,k}=\Yo_{i,k}+(1-\Yo_{i,k})\,\wt_k(x_i)$ for every objective at once, because
+$\wt_k$ is a function the pipeline evaluates rather than an outcome it awaits. \textsc{Ulc}
+reaches comparable accuracy, so the choice between them is architectural: \textsc{Ulc} fits each
+$w_k$ inside the served model's training loop, turning $K$ objectives into $K$ auxiliary heads
+on one optimiser, whereas a teacher places each $w_k$ upstream with a single number written onto
+a record as its only interface. Section~\ref{sec:exp} shows that upstream model need not be
+large, expensive, or retrained while the student trains, so consolidation adds $K$ static model
+files to the build rather than $K$ running training jobs.
+
+Three limits bound the claim. We ran one objective at a time, so we have no evidence on
+interference between objectives sharing a trunk, which is the central risk in the multi-task
+target above. Our teacher stands in for the production ranking model the argument invokes rather
+than being an instance of one. And one corpus with one chronological split measures precision
+rather than generalisation. The experiment this makes worth running is $K$ prediction heads,
+$K$ attribution windows, one stream, and the teachers placed upstream.

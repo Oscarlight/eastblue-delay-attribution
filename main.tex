@@ -6,6 +6,8 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage[hidelinks]{hyperref}
+% microtype would tighten the line breaking, but it is not installed on the authoring host.
+\IfFileExists{microtype.sty}{\usepackage{microtype}}{}
 
 % notation
 \newcommand{\Yo}{Y^{(o)}}         % label visible at the join delay
@@ -36,11 +38,9 @@
 \end{abstract}
 
 \input{sections/01-intro}
-\input{sections/02-setting}
-\input{sections/03-targets}
-\input{sections/04-setup}
-\input{sections/05-results}
-\input{sections/06-consolidation}
+\input{sections/02-approach}
+\input{sections/03-experiments}
+\input{sections/04-conclusion}
 
 \bibliographystyle{splncs04}
 \bibliography{refs}
