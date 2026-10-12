@@ -40,6 +40,22 @@ OS, TASKS = [5, 30, 90], ["1d", "7d"]
 WAIT, CD, DO = "DISTILL_T", "DISTILL_T13", "DISTILL_pv"
 FRESH, ORACLE, FROZEN = "DISTILL_nokd", "Oracle", "DISTILL_T13frz"
 
+#: Arm names do not follow one convention, so the paper's method names map as follows. The trap
+#: is DISTILL_pv: it carries no teacher suffix but Distill.teacher_capacity defaults to "T13",
+#: so it is the DEEP-TRUNK arm, not a teacher-agnostic or MLP one. Its sibling DISTILL_T13
+#: spells the same teacher out. Read the registry in harness/tr_methods/distill.py, not the name.
+#:
+#:   paper name        MLP teacher        deep-trunk (T13) teacher
+#:   Wait              DISTILL_T          DISTILL_T          (no teacher; identical arm)
+#:   Oracle            Oracle             Oracle             (no teacher; identical arm)
+#:   Fresh             DISTILL_nokd       DISTILL_nokd       (teacher trained, label unused)
+#:   Correct-Distill   DISTILL_Tmlp       DISTILL_T13
+#:   Distill-Only      DISTILL_pvmlp      DISTILL_pv
+#:
+#: Both teachers cover the full 30-cell grid, so either could carry the headline figures; the
+#: paper reports the deep-trunk pair and uses the MLP pair for the teacher ablation.
+TEACHER_ALT = {CD: "DISTILL_Tmlp", DO: "DISTILL_pvmlp"}
+
 #: Measured by instantiating each model: forward pass, batch 512, linear layers at 2xMAC and
 #: embedding gathers at zero. Parameters and FLOPs do not track -- A0 and A1 differ 5.2x in
 #: parameters at IDENTICAL compute, since they share a trunk and differ only in table rows.
@@ -316,7 +332,8 @@ def build() -> dict:
     # under a deep interaction trunk. Both are reported so the reader sees two datapoints rather
     # than one configuration plus a robustness footnote.
     for tag, task in (("One", "1d"), ("Seven", "7d")):
-        for who, small_arm, large_arm in (("Cd", "DISTILL_Tmlp", CD), ("Do", "DISTILL_pvmlp", DO)):
+        for who, large_arm in (("Cd", CD), ("Do", DO)):
+            small_arm = TEACHER_ALT[large_arm]       # single source of truth, see the map above
             m[f"tchSmall{who}{tag}"] = f"{mean_of(V4, small_arm, task):+.2f}"
             m[f"tchLarge{who}{tag}"] = f"{mean_of(V4, large_arm, task):+.2f}"
 
