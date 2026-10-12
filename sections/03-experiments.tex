@@ -31,20 +31,20 @@ are then consumed by a stack of Wukong interaction layers.
 % carried as a residual. 
 The final token set is flattened to a single logit for final output.
 
-\paragraph{Scaling complexity of the served model.} The five rungs $\mathrm{M}_0$ to $\mathrm{M}_4$ move three
-dials together rather than one: the interaction trunk is taken from successive rungs of a
-compute-efficient frontier, the hash width per categorical field grows $36 \to 256 \to 1{,}280
-\to 16{,}384 \to 131{,}072$, and the embedding dimension widens $4 \to 4 \to 8 \to 8 \to 8$.
-% Scaling only table rows against a fixed trunk would make the axis a feature-resolution axis
-% rather than a capacity one, since on this corpus the trunk dominates the parameter count until
-% the tables are large. 
-The result is roughly an order of magnitude per step, \capMin{} to
-\capMax{} parameters and \flopMin{} to \flopMax{} MFLOPs per inference. 
-% Parameters and compute do not track each other: $\mathrm{M}_0$ and $\mathrm{M}_1$ differ 5.2-fold in parameters at
-% identical compute because they share a trunk rung and differ only in table rows. We therefore
+% \paragraph{Scaling complexity of the served model.} The five rungs $\mathrm{M}_0$ to $\mathrm{M}_4$ move three
+% dials together rather than one: the interaction trunk is taken from successive rungs of a
+% compute-efficient frontier, the hash width per categorical field grows $36 \to 256 \to 1{,}280
+% \to 16{,}384 \to 131{,}072$, and the embedding dimension widens $4 \to 4 \to 8 \to 8 \to 8$.
+% % Scaling only table rows against a fixed trunk would make the axis a feature-resolution axis
+% % rather than a capacity one, since on this corpus the trunk dominates the parameter count until
+% % the tables are large. 
+% The result is roughly an order of magnitude per step, \capMin{} to
+% \capMax{} parameters and \flopMin{} to \flopMax{} MFLOPs per inference. 
+% % Parameters and compute do not track each other: $\mathrm{M}_0$ and $\mathrm{M}_1$ differ 5.2-fold in parameters at
+% % identical compute because they share a trunk rung and differ only in table rows. We therefore
 % report both rather than let one stand for the other.
 
-\paragraph{Different setups and metric.} Two attribution windows ($v\in\{1, 7\}$ days), three
+\paragraph{Different setups and evaluation metric.} Two attribution windows ($v\in\{1, 7\}$ days), three
 join delays ($o\in\{5,30,90\}$ minutes), serving models with five different complexities ($\mathrm{M}_0$ to $\mathrm{M}_4$), and two different teacher models are used. For the five different complexities, the hash width per categorical field grows $36 \to 256 \to 1{,}280
 \to 16{,}384 \to 131{,}072$, and the embedding dimension widens $4 \to 4 \to 8 \to 8 \to 8$. The result is roughly an order of magnitude per step, \capMin{} to \capMax{} parameters and \flopMin{} to \flopMax{} MFLOPs per inference.
 For the two teacher models, \emph{Teacher 1} places
@@ -52,7 +52,7 @@ For the two teacher models, \emph{Teacher 1} places
 parameters at \teacherSmallFlops{} MFLOPs. \emph{Teacher 2} places 48-dimensional tables under a
 deep interaction trunk, giving \teacherParams{} parameters at \teacherFlops{} MFLOPs. Running
 both is what lets us report the method's sensitivity to the choice of teacher rather than to one
-arbitrary configuration of it. For each step, we ran 5 seeds for statistic analysis.
+arbitrary configuration of it. For each step, we ran five to ten seeds for statistic analysis.
 We report normalised entropy and calibration against the matured $\Yv$ for all methods.
 
 % \paragraph{Scale and comparability.} The evidence comprises \nRunsBoth{} runs in two campaigns:
