@@ -148,9 +148,11 @@ def main() -> None:
                             ("DISTILL_pv", "DISTILL_pvmlp", "Distill-Only")):
         df = [rel(big, t, o, c).mean() - rel(small, t, o, c).mean()
               for t in TASKS for o in OS for c in CAPS]
-        # Only the Correct-Distill figure reaches the page; both are still re-derived.
-        claim(f"teacher 6x step, {lab}", f"{np.mean(df):+.3f} pp",
-              f"{np.mean(df):+.3f}" if lab == "Correct-Distill" else None)
+        # Neither figure reaches the page any more: the paper now rests the teacher-robustness
+        # claim on the two near-identical rows of Fig. 1 rather than on a printed number. Both
+        # are still re-derived here, and asserted small, so the claim stays falsifiable.
+        claim(f"teacher 6x step, {lab}", f"{np.mean(df):+.3f} pp", None)
+        assert abs(np.mean(df)) < 0.2, f"{lab}: teacher step is no longer negligible"
         assert abs(np.mean(df)) < 0.25, "paper claims a bigger teacher buys nothing"
 
     # --- Wait baseline ---------------------------------------------------------------------------
@@ -234,6 +236,15 @@ def main() -> None:
     # Distill-Only changes sign across the ladder; that is contribution 3 in one row.
     assert gains["M0"]["Distill-Only"] > 0 > gains["M3"]["Distill-Only"], \
         "paper says Distill-Only wins at M0 and loses at M3"
+
+    # The prose says our calibration "tracks" Wait's at both rungs. It said "better than" until
+    # dropping the top rung flipped the sign at M3 without anyone noticing, so the wording is
+    # now pinned to a measured tolerance rather than to a remembered ordering.
+    for cap, lab in (("A0", "M0"), ("A3", "M3")):
+        w = SL[(SL.arm == "DISTILL_T") & (SL.cap == cap)]["cal_err"].mean()
+        c = SL[SL.arm.isin(["DISTILL_Tmlp", "DISTILL_T13"]) & (SL.cap == cap)]["cal_err"].mean()
+        claim(f"{lab} calibration, ours vs Wait", f"{c:.4f} vs {w:.4f}", None)
+        assert abs(c - w) / w < 0.10, f"{lab}: calibration no longer tracks Wait's"
 
     assert "TWICE" not in PDF and "Twice" not in PDF, "TWICE must not appear in the paper"
     assert "IF-DFM" not in PDF, "IF-DFM must not appear in the paper"

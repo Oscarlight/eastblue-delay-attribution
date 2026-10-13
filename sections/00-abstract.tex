@@ -1,16 +1,17 @@
-Conversion pipelines in advertising are split by the delay time a conversion is observable: an upper-funnel onsite conversion is
-observable within minutes of the click, while a down-funnel offsite conversion takes a day or
-more. Each objective defines an \emph{attribution window}, the elapsed time within which a
-conversion counts. Conventionally a training pipeline's join delay is the same as conversion attribution window. Tying the two together forces every objective
-onto its own pipeline, each as stale as the attribution window it waited for. We ask whether they can be
-set independently. Naively writing training records sooner makes every conversion still in flight become a
-negative example, and a streaming pipeline that visits each click at most once cannot revise them
-afterwards. Yet most published corrections do exactly that: of \nScreened{} methods we
-reproduce, \nFail{} write more than one training record per click, up to \maxDup{}. On the Criteo
-Delayed Feedback Dataset we compare three targets across \nRunsBoth{} runs, four served
-capacities, three join delays, two attribution windows and two teacher architectures. Writing
-the record early and replacing only the negatives with a teacher model's estimate beats
-waiting for the matured label in \cdBeatWait{} of \nCellsBoth{} configurations, by
-\cdSevenMeanAbs{}\% at seven days and \cdOneMeanAbs{}\% at one, which is \recoverSeven{}\% and
-\recoverOne{}\% of what a label-peeking oracle attains. It is the strongest method obeying the
-single-visit constraint.
+Conversion pipelines in advertising are split by how long a conversion takes to observe: an
+upper-funnel onsite conversion is visible within minutes of the click, while a down-funnel
+offsite conversion takes a day or more. Each objective defines an \emph{attribution window}, the
+elapsed time within which a conversion counts, and conventionally a training pipeline's join
+delay is set equal to that attribution window. Tying the two together forces every objective
+onto its own pipeline, each as stale as the window it waited for. We ask whether they can be set
+independently. Writing training records sooner turns every conversion still in flight into a
+negative example, and a streaming pipeline that visits each click at most once cannot revise
+them afterwards. Yet most published corrections rely on exactly such a revision: of
+\nScreened{} methods we reproduce, \nFail{} write more than one training record per click, as
+many as \maxDup{}. On the Criteo Delayed Feedback Dataset we compare three targets across
+\nRunsBoth{} runs, four served capacities, three join delays, two attribution windows and two
+teacher architectures. Writing the record early and replacing only the negatives with a teacher
+model's estimate beats waiting for the matured label in \cdBeatWait{} of \nCellsBoth{}
+configurations, by \cdSevenMeanAbs{}\% at seven days and \cdOneMeanAbs{}\% at one, which is
+\recoverSeven{}\% and \recoverOne{}\% of what a label-peeking oracle attains. It is the
+strongest method that obeys the single-visit constraint.

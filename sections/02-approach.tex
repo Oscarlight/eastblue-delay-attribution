@@ -1,15 +1,16 @@
 \section{Problem Setting and Proposed Approach}
 \label{sec:approach}
 
-A click $i$ occurs at time $C_i$ with features $x_i$, then the pipeline waits for conversions for a window $D_i$. The attribution window $v$ fixes the target $\Yv_i=\mathbf{1}[D_i\le v]$, knowable only at $C_i+v$. The join
+A click $i$ occurs at time $C_i$ with features $x_i$ and, if it converts, does so after a
+delay $D_i$. The attribution window $v$ fixes the target $\Yv_i=\mathbf{1}[D_i\le v]$, knowable only at $C_i+v$. The join
 delay $o$ fixes when the record is written, so the label available
 at that moment is
 \begin{equation}
   \Yo_i \;=\; \mathbf{1}\!\left[D_i \le o\right] \;\le\; \Yv_i .
   \label{eq:labels}
 \end{equation}
-Setting $o=v$ reproduces the conventional pipeline. Setting $o\ll v$ is what we
-want in order to consolidate fast and slow conversions into the same training pipeline.
+Setting $o=v$ reproduces the conventional pipeline. Setting $o\ll v$ is what we want, so that
+fast and slow conversions can share one training pipeline.
 % , and the inequality in Eq.~\eqref{eq:labels} is its price. We write
 % $F(o)=P(D\le o\mid D\le v)$ for the fraction of the objective's conversions already visible when
 % the record is written. 
@@ -18,14 +19,15 @@ want in order to consolidate fast and slow conversions into the same training pi
 % $, and updating before predicting keeps the evaluation causal.
 
 \paragraph{What a deployable pipeline must satisfy.}
-We cannot train on the conversions landed in the future at any moment, which is a straightforward \textbf{causality rule}. In addition, we have the \textbf{single-visit} constraint: Let $n_i$ be the number
-of times a click $i$ enters the served model's loss over its lifetime. This practical constraint used widely in the production systems requires
-$\max_i n_i\le 1$. 
+At no moment can we train on conversions that have not yet landed, which is a straightforward
+\textbf{causality rule}. In addition, we have the \textbf{single-visit} constraint: let $n_i$ be the number
+of times a click $i$ enters the served model's loss over its lifetime. This constraint, widely used in production systems, requires
+$\max_i n_i\le 1$.
 
 \paragraph{Which published methods comply.}
 We reproduced \nScreened{} published methods from scratch under a single protocol and counted
-the records each one's served model consumes per distinct click. \nFail{} write more than
-one.
+the records each one's served model consumes per distinct click. Of these, \nFail{} write
+more than one.
 % \footnote{Two measurement traps both understate duplication. The denominator must be
 % distinct clicks touched, since dividing records consumed by records released conflates
 % duplication with variation in click volume. And a scoring window shorter than a method's revisit
@@ -43,9 +45,9 @@ while ULC changes the training target.
 % What remains is a choice of what the single frozen target should contain. We study four answers,
 % sharing a pipeline, schedule, feature set and optimiser, and differing only in the target
 % $\tilde y_i$ and in the age $\Delta$ at which the record is written. 
-We studied four types of pipeline target generation methods: 
+We study four ways of generating the pipeline's training target. 
 \textsc{Fresh} writes at
-$\Delta=o$ with $\tilde y_i=\Yo_i$, filling the deficit with nothing. \textsc{Wait} writes at
+$\Delta=o$ with $\tilde y_i=\Yo_i$, applying no correction at all. \textsc{Wait} writes at
 $\Delta=v$ with $\tilde y_i=\Yv_i$, which is the conventional method and our comparison baseline.
 \textsc{Correct-Distill} writes at $\Delta=o$, keeps the observed
 labels and softens only the observed negatives with a teacher model's prediction.
@@ -57,10 +59,12 @@ labels and softens only the observed negatives with a teacher model's prediction
 \end{equation}
 An observed positive stays exactly $1$, and only the uncertain mass moves. This is the functional
 form used by ULC~\cite{wang2023unbiased}; the two differ in how $\wt$ is estimated. 
-\textsc{Distill-Only} goes further and replaces both all observed labels with a teacher model's prediction. A teacher model in both \textsc{Distill-Only} and \textsc{Correct-Distill} is trained with the conventional \textsc{Wait} method.
+\textsc{Distill-Only} goes further still, replacing every observed label with the teacher's
+prediction. The teacher model used by both \textsc{Distill-Only} and \textsc{Correct-Distill}
+is itself trained with the conventional \textsc{Wait} method.
 Finally, \textsc{Oracle} writes at $\Delta=o$ but labels the record
 $\Yv_i$. It violates the causality rule and is not deployable. We include it because it bounds what any
-causal correction could recover.
+causal correction can recover.
 
 % \paragraph{The teacher model.}
 % The estimates $\wt$ and $\pv$ come from a separate model trained on the \emph{matured} stream,

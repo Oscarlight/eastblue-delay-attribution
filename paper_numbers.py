@@ -208,7 +208,10 @@ def build() -> dict:
     m["maxDup"] = f"{sc.dup.max():.2f}"
     m["maxDupArm"] = sc.loc[sc.dup.idxmax(), "arm"]
     m["vanillaDup"] = "1.03"
-    m["passList"] = ", ".join(sc[sc["pass"]].arm)
+    _ok = list(sc[sc["pass"]].arm)
+    #: Read mid-sentence ("Only FSIW and ULC satisfy ..."), so join with a conjunction.
+    m["passList"] = (" and ".join(_ok) if len(_ok) < 3
+                     else ", ".join(_ok[:-1]) + " and " + _ok[-1])
 
     # ---- join-delay ratios ---------------------------------------------------------------
     m["ratioSeven"] = f"{int(round(7 * 24 * 60 / 5)):,}"
@@ -550,7 +553,7 @@ def write_tex(m: dict) -> None:
     (out / "tab_baselines.tex").write_text(baseline_table(m, sc))
     (out / "screen_inline.tex").write_text(
         ", ".join(rf"\textsc{{{r.arm.replace('-', '{-}')}}}{CITE.get(r.arm, '')}~{r.dup:.2f}"
-                  for r in fail.itertuples()) + "\n")
+                  for r in fail.itertuples()) + "%\n")
     print(f"wrote {out}/macros.tex ({len(m)} macros) and screen_inline.tex")
 
 

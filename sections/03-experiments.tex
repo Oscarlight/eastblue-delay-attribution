@@ -11,17 +11,17 @@
 
 \paragraph{Data and protocol.} We use the public Criteo conversion logs released
 with~\cite{chapelle2014modeling}. Clicks span 60 days. Days $[0,30)$ initialise the model and days
-$[30,60)$ form the hourly online training period, divided into \nCohorts{} hourly rounds yielding \nEval{}
-scored clicks at a base conversion rate of \baseRate{}. Learning rates are selected per arm and
+$[30,60)$ form the online training period, divided into \nCohorts{} hourly rounds yielding
+\nEval{} scored clicks at a base conversion rate of \baseRate{}. Learning rates are selected per arm and
 per cell from a seven-point grid on a held-out slice of the initialisation period, then pinned across seeds. The teacher model's rate is fixed and decoupled from
-the serving model's.
+that of the serving model.
 
-\paragraph{Model architecture.} In the model arch backbone, the eight integer fields enter a dense
+\paragraph{Model architecture.} In the model backbone, the eight integer fields enter a dense
 arm as $\log(1+x)$ paired with an observed-mask bit, normalised and passed through a two-layer
 perceptron to a projection vector. The nine categorical fields are hashed per field and
 embedded, giving a token per field. Tokens and the dense projection
-are then consumed by a stack of Wukong interaction layers~\cite{zhang2024wukong}, then output
-the final prediction.
+are then consumed by a stack of Wukong interaction layers~\cite{zhang2024wukong}, which
+produce the final prediction.
 % , each of which
 % takes a token set and returns a token set of the same width so layers compose, combining a
 % factorisation-machine block for explicit pairwise interaction with a linear compression block
@@ -41,19 +41,20 @@ the final prediction.
 % report both rather than let one stand for the other.
 
 \paragraph{Different setups and evaluation metric.} Two attribution windows ($v\in\{1, 7\}$ days), three
-join delays ($o\in\{5,30,90\}$ minutes), four different serving model complexities
+join delays ($o\in\{5,30,90\}$ minutes), four serving-model complexities
 ($\mathrm{M}_0$ to $\mathrm{M}_3$), and two different teacher models are used. Across the four
 complexities the hash width per categorical field grows $36 \to 256 \to 1{,}280 \to 16{,}384$
-and the embedding dimension widens $4 \to 4 \to 8 \to 8$, roughly an order of magnitude of
+and the embedding dimension widens $4 \to 4 \to 8 \to 8$, roughly an order of magnitude in
 parameters per step, \capMin{} to \capMax{} parameters and \flopMin{} to \flopMax{} MFLOPs per
 inference.
 For the two teacher models, \emph{Teacher 1} places
 8-dimensional embedding tables under a two-layer perceptron, giving \teacherSmallParams{}
 parameters at \teacherSmallFlops{} MFLOPs. \emph{Teacher 2} places 48-dimensional tables under a
 deep interaction trunk, giving \teacherParams{} parameters at \teacherFlops{} MFLOPs. Running
-both is what lets us report the method's sensitivity to the choice of teacher rather than to one
-arbitrary configuration of it. For each step, we ran five to ten seeds for statistical analysis.
-We report normalized entropy and calibration against mature $\Yv$ for all methods.
+both lets us report the method's sensitivity to the choice of teacher rather than to a single
+arbitrary configuration. For each configuration we ran five to ten seeds for statistical
+analysis, and we report normalised entropy and calibration against the matured $\Yv$ for all
+methods.
 
 % \paragraph{Scale and comparability.} The evidence comprises \nRunsBoth{} runs in two campaigns:
 % \nRunsThree{} runs over \nArmsThree{} arms reproducing the published methods under teacher~1, and \nRunsFour{} runs over \nArmsFour{} arms adding teacher~2, with
@@ -85,7 +86,7 @@ We report normalized entropy and calibration against mature $\Yv$ for all method
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\textwidth]{figs/gain}
-\caption{Relative $\NE$ reduction against \textsc{Wait} as a function of served capacity, for different join delay $o$, and two different teacher models.
+\caption{Relative $\NE$ reduction against \textsc{Wait} as a function of served capacity, for three join delays $o$ and two teacher models.
 % Columns are the join delay, (A)~$o=5$, (B)~$o=30$ and (C)~$o=90$ minutes; rows are the teacher
 % the targets were distilled from, teacher 1 in $\mathrm{A}_1$--$\mathrm{C}_1$ and teacher 2
 % in $\mathrm{A}_2$--$\mathrm{C}_2$. Each row is read against its own
@@ -115,22 +116,33 @@ violates causality and is an upper reference rather than a method.}
 \input{generated/tab_baselines}
 \end{table}
 
-\paragraph{With teacher models' prediction as soft target, decoupling the join delay from the attribution window improves accuracy.}
-\textsc{Correct-Distill} method, which writes the record early and replaces only its observed negatives with the teacher's estimate, 
-beats \textsc{Wait} in \cdBeatWait{} of \nCellsBoth{} cells, by \cdSevenMeanAbs{}\% on average
-at $v=7$\,d and
-\cdOneMeanAbs{}\% at $v=1$\,d. Figure~\ref{fig:gain} shows where that gain comes from and where
-it runs out. Comparing the $v=7$\,d and $v=1$\,d, the gain is largest where the funnel is slowest, because \textsc{Wait} at $v=7$\,d trains on week-old data and no amount of label accuracy compensates for that. Along the model complexity axis, \textsc{Distill-Only}, which relies purely on the teacher models' predcition and carries no
-observed label at all, beats \textsc{Wait} in all \doSmallBeat{} of \doSmallN{} cells at the two
-smallest capacities, by \doOneSmallAbs{}\% at $v=1$\,d and \doSevenSmallAbs{}\% at $v=7$\,d, and
-loses at the two largest by \doOneLargeAbs{}\% and \doSevenLargeAbs{}\%. This trend is plausibly because when a model becomes more complex, it can learn better from the hard targets, then the freshness gain from the soft targets can no longer compensate the information loss from a hard target to a soft target~\cite{menon2021statistical}. However, it can still be applicable for early ranking stages such as retrieval, where the model complexity needs to be low to have a high throughput to rank a large amount of items. In addition, when comparing across different joint delay $o=5, 30$ and $90$ minutes, for $v=7$\,d, larger $o$ improves the model accuracies of \textsc{Correct-Distill}, it is likely to larger $o$ means more hard labels are included.  
+\paragraph{With the teacher's prediction as a soft target, decoupling the join delay from the
+attribution window improves accuracy.}
+\textsc{Correct-Distill}, which writes the record early and replaces only its observed negatives
+with the teacher's estimate, beats \textsc{Wait} in \cdBeatWait{} of \nCellsBoth{} cells, by
+\cdSevenMeanAbs{}\% on average at $v=7$\,d and \cdOneMeanAbs{}\% at $v=1$\,d.
+Figure~\ref{fig:gain} shows where that gain comes from and where it runs out. Comparing
+$v=7$\,d with $v=1$\,d, the gain is largest where the funnel is slowest, because \textsc{Wait}
+at $v=7$\,d trains on week-old data and no amount of label accuracy compensates for that. Along
+the model complexity axis, \textsc{Distill-Only}, which relies purely on the teacher model's
+prediction and carries no observed label at all, beats \textsc{Wait} in all \doSmallBeat{} of
+\doSmallN{} cells at the two smallest capacities, by \doOneSmallAbs{}\% at $v=1$\,d and
+\doSevenSmallAbs{}\% at $v=7$\,d, and loses at the two largest by \doOneLargeAbs{}\% and
+\doSevenLargeAbs{}\%. This trend is plausibly because a more complex model learns better from
+hard targets, so the freshness gained from a soft target no longer compensates for the
+information lost in replacing a hard target with a soft one~\cite{menon2021statistical}. The
+fully soft target nonetheless remains applicable to early ranking stages such as retrieval,
+where model complexity must stay low in order to rank a large number of items at high
+throughput. Finally, comparing across join delays $o=5$, $30$ and $90$ minutes, a larger $o$
+improves the accuracy of \textsc{Correct-Distill} at $v=7$\,d, likely because a larger $o$
+admits more hard labels.
 
 Table~\ref{tab:baselines} places both targets against the literature at one operating point,
 $v=1$\,d and $o=90$ minutes. Among the methods a single-visit pipeline can actually run we lead
 at both rungs, \slSmallOur{}\% against \slSmallUlc{}\% for ULC~\cite{wang2023unbiased} at
 $\mathrm{M}_0$ and \slLargeOur{}\% against \slLargeUlc{}\% at $\mathrm{M}_3$, with overlapping
-intervals, and we are better calibrated than \textsc{Wait} at both rungs while \textsc{Fresh}
-degrades calibration error by \slSmallFreshCalRatio{} and \slLargeFreshCalRatio{} times. The
+intervals, and our calibration error tracks \textsc{Wait}'s at both rungs while \textsc{Fresh}
+degrades it by \slSmallFreshCalRatio{} and \slLargeFreshCalRatio{} times. The
 constraint is not free: \textsc{\slSmallBest} reaches \slSmallBestGain{}\% at $\mathrm{M}_0$ by
-writing the same click several times, which supplies training signal that no method with single-visit
-constraint can recover.
+writing the same click several times, which supplies training signal that no single-visit
+method can recover.
